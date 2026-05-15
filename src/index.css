@@ -1,0 +1,86 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-sand: #E5E7EB;
+  --color-clay: #F59E0B;
+  --color-olive: #10B981;
+  --color-forest: #059669;
+  --color-beige: #F3F4F6;
+  --color-cream: #F9FAFB;
+  --color-stone: #6B7280;
+  --color-coffee: #111827;
+  --color-charcoal: #030712;
+}
+
+@layer base {
+  :root {
+    --background: 40 30% 96%; 
+    --foreground: 20 18% 12%; 
+    
+    --primary: 82 41% 25%;
+    --primary-foreground: 40 30% 98%;
+    
+    --secondary: 36 24% 85%;
+    --secondary-foreground: 20 18% 15%;
+    
+    --radius: 0.5rem;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-coffee);
+    font-family: var(--font-sans);
+    @apply antialiased tracking-tight;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--color-forest);
+    text-wrap: balance;
+  }
+  
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .premium-card {
+    @apply bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-sand/60 shadow-[0_4px_24px_rgba(47,69,56,0.04)] transition-all duration-300 hover:shadow-[0_12px_40px_rgba(47,69,56,0.08)] hover:border-sand;
+  }
+
+  .btn-primary {
+    @apply bg-forest text-cream px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-forest/90 hover:shadow-lg hover:shadow-forest/20 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-sand text-forest px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-cream hover:border-olive/30 shadow-sm active:scale-[0.98];
+  }
+
+  .btn-outline {
+    @apply border border-stone/20 text-coffee px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-stone/5 active:scale-[0.98];
+  }
+
+  .input-field {
+    @apply w-full px-4 pr-12 py-3 bg-white text-coffee border border-sand rounded-xl text-base font-medium transition-all focus:outline-none focus:ring-4 focus:ring-olive/10 focus:border-olive/30 placeholder:text-stone/50 shadow-sm;
+  }
+
+  .input-field:-webkit-autofill,
+  .input-field:-webkit-autofill:hover, 
+  .input-field:-webkit-autofill:focus, 
+  .input-field:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: var(--color-coffee) !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .status-dot {
+    @apply w-1.5 h-1.5 rounded-full inline-block mr-2 ring-2 ring-white;
+  }
+}

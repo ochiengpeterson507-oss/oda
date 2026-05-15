@@ -1,0 +1,131 @@
+-- 1. Create Tables
+
+-- Profiles table (linked to auth.users)
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  role TEXT DEFAULT 'buyer' CHECK (role IN ('buyer', 'seller', 'admin')),
+  full_name TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Companies table
+CREATE TABLE public.companies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  owner_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  logo_url TEXT,
+  website TEXT,
+  industry TEXT,
+  verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Categories table
+CREATE TABLE public.categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL UNIQUE,
+  icon TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Products table
+CREATE TABLE public.products (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  category_id UUID REFERENCES public.categories(id),
+  name TEXT NOT NULL,
+  description TEXT,
+  price_range TEXT,
+  min_order_quantity TEXT,
+  images TEXT[] DEFAULT '{}',
+  featured BOOLEAN DEFAULT FALSE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Inquiries table
+CREATE TABLE public.inquiries (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  buyer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  subject TEXT,
+  message TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Messages table (for real-time chat between buyer and seller)
+CREATE TABLE public.messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  sender_id UUID REFERENCES public.profiles(id),
+  receiver_id UUID REFERENCES public.profiles(id),
+  content TEXT NOT NULL,
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Favorites
+CREATE TABLE public.favorites (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
+  UNIQUE(user_id, product_id)
+);
+
+-- 2. Row Level Security (RLS) Policies
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Users can view all profiles, but only edit their own
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+-- Companies: Viewable by all, managed by owner
+CREATE POLICY "Companies are viewable by everyone" ON public.companies FOR SELECT USING (true);
+CREATE POLICY "Owners can manage their companies" ON public.companies FOR ALL USING (auth.uid() = owner_id);
+
+-- Products: Viewable by all, managed by company owner
+CREATE POLICY "Products are viewable by everyone" ON public.products FOR SELECT USING (true);
+CREATE POLICY "Owners can manage their products" ON public.products FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.companies 
+    WHERE companies.id = products.company_id AND companies.owner_id = auth.uid()
+  )
+);
+
+-- Inquiries: Buyers see their own, sellers see inquiries for their products
+CREATE POLICY "Buyers can view their inquiries" ON public.inquiries FOR SELECT USING (auth.uid() = buyer_id);
+CREATE POLICY "Sellers can view inquiries for their products" ON public.inquiries FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.products p
+    JOIN public.companies c ON p.company_id = c.id
+    WHERE p.id = inquiries.product_id AND c.owner_id = auth.uid()
+  )
+);
+CREATE POLICY "Buyers can create inquiries" ON public.inquiries FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+
+-- 3. Functions & Triggers
+
+-- Trigger to create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, avatar_url, role)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url', COALESCE(new.raw_user_meta_data->>'role', 'buyer'));
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
