@@ -77,7 +77,7 @@ export default function MarketplacePage() {
           </div>
           
           <div className="flex w-full md:w-auto items-center gap-4">
-            <div className="flex-1 md:w-72 flex items-center gap-3 bg-white/70 backdrop-blur-sm px-5 py-3 rounded-xl border border-sand focus-within:border-coffee/20 focus-within:ring-4 focus-within:ring-coffee/[0.02] transition-all shadow-sm">
+            <div className="flex-1 md:w-72 flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-sand focus-within:border-olive focus-within:ring-2 focus-within:ring-olive/20 transition-all shadow-sm">
               <Search size={16} className="text-stone" />
               <input 
                 type="text" 
@@ -160,13 +160,13 @@ export default function MarketplacePage() {
                     key={product.id}
                     initial={{ opacity: 0 }}
                     whileInView={{ opacity: 1 }}
-                    className="flex flex-col group"
+                    className="card flex flex-col group p-4"
                   >
-                    <Link to={`/product/${product.id}`} className="block aspect-[4/5] overflow-hidden rounded-2xl bg-sand/30 border border-sand/50 mb-6 relative">
+                    <Link to={`/product/${product.id}`} className="block aspect-[4/5] overflow-hidden rounded-xl bg-sand/30 mb-4 relative">
                       <img 
                         src={product.images?.[0] || `https://images.unsplash.com/photo-1596487649116-be83a5cd9621?auto=format&fit=crop&q=80&w=800&sig=${product.id}`} 
                         alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
                         referrerPolicy="no-referrer"
                       />
                     </Link>
@@ -203,7 +203,7 @@ export default function MarketplacePage() {
                 <p className="text-stone max-w-sm mx-auto text-sm px-6">We couldn't find items matching your search. Try broadening your criteria or clear filters.</p>
                 <button 
                   onClick={() => {setSearch(''); setSelectedCategory(null);}} 
-                  className="mt-8 px-8 py-3 bg-olive text-white rounded-xl font-bold hover:bg-olive/90 transition-all shadow-lg shadow-olive/10"
+                  className="btn-primary mt-8 px-8 py-3 uppercase tracking-widest"
                 >
                   Clear All Filters
                 </button>
@@ -270,7 +270,7 @@ export default function MarketplacePage() {
 
                 <button 
                   onClick={() => setShowMobileFilters(false)}
-                  className="w-full py-4 bg-coffee text-white rounded-xl font-bold uppercase tracking-widest text-xs mt-4"
+                  className="btn-primary w-full py-4 uppercase tracking-widest mt-4"
                 >
                   Apply Filters
                 </button>

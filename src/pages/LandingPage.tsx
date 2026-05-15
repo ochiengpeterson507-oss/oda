@@ -54,10 +54,10 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row justify-center items-center gap-6"
           >
-            <Link to="/marketplace" className="btn-primary py-4 px-12 text-sm rounded-xl bg-olive border-none text-white hover:bg-olive/90 shadow-2xl shadow-olive/20">
+            <Link to="/marketplace" className="btn-primary py-4 px-12 text-sm">
               Enter Marketplace
             </Link>
-            <Link to="/signup" className="btn-secondary py-4 px-12 text-sm rounded-xl bg-white text-forest hover:bg-cream shadow-xl font-bold border-none transition-colors">
+            <Link to="/signup" className="btn-secondary py-4 px-12 text-sm">
               Apply for Access
             </Link>
           </motion.div>

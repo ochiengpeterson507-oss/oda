@@ -19,6 +19,13 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'placeholder';
+    if (supabaseUrl.includes('placeholder')) {
+      setError("Please connect your Supabase database first.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -37,6 +44,22 @@ export default function SignupPage() {
       // Typically show a verification message or redirect
       navigate('/dashboard');
     }
+  };
+
+  const handleGoogleLogin = async () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'placeholder';
+    if (supabaseUrl.includes('placeholder')) {
+      setError("Please connect your Supabase database first to use Google Sign-in.");
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/dashboard',
+      },
+    });
+    if (error) setError(error.message);
   };
 
   return (
@@ -160,7 +183,7 @@ export default function SignupPage() {
           <button 
             type="submit" 
             disabled={loading}
-            className={`btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.3em] disabled:opacity-50 ${role === 'seller' ? 'bg-olive shadow-olive/10 hover:bg-olive/90' : ''}`}
+            className="btn-primary w-full py-4 text-xs uppercase tracking-[0.3em] disabled:opacity-50"
           >
             {loading ? 'Processing...' : 'Create Account'}
           </button>
@@ -173,7 +196,8 @@ export default function SignupPage() {
 
           <button 
             type="button"
-            className="w-full flex items-center justify-center gap-4 bg-white/70 backdrop-blur-sm border border-sand rounded-xl py-4 hover:bg-cream transition-all group shadow-sm active:scale-[0.98]"
+            onClick={handleGoogleLogin}
+            className="btn-secondary w-full py-4 flex items-center justify-center gap-4 group"
           >
             <svg className="w-4 h-4 grayscale group-hover:grayscale-0 transition-all" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

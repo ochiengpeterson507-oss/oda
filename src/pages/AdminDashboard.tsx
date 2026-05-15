@@ -56,10 +56,10 @@ export default function AdminDashboard() {
             <input 
               type="text" 
               placeholder="Search across nodes..." 
-              className="w-full bg-white/70 border border-sand rounded-xl py-3 pl-11 pr-4 text-[13px] font-medium placeholder:text-stone/30 outline-none focus:ring-2 focus:ring-coffee/5 focus:border-coffee transition-all shadow-sm"
+              className="input-field pl-11 text-[13px]"
             />
           </div>
-          <button className="p-3 bg-white border border-sand rounded-xl text-coffee/60 hover:bg-sand/10 transition-all shadow-sm">
+          <button className="btn-secondary px-3 py-3">
             <Filter size={18} strokeWidth={1.5} />
           </button>
         </div>

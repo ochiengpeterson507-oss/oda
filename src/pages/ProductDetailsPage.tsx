@@ -259,7 +259,7 @@ export default function ProductDetailsPage() {
                       <textarea 
                         required
                         placeholder="Detail your required volume, delivery timeline, and technical modifications..."
-                        className="w-full bg-white/50 border border-sand rounded-xl p-6 min-h-[160px] focus:ring-2 focus:ring-coffee/5 focus:bg-white outline-none transition-all text-sm font-medium placeholder:text-stone/30 shadow-inner"
+                        className="input-field p-6 min-h-[160px]"
                         value={inquiryMessage}
                         onChange={(e) => setInquiryMessage(e.target.value)}
                       />

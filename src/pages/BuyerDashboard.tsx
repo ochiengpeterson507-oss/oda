@@ -37,7 +37,7 @@ export default function BuyerDashboard() {
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1000);
+    setLoading(false);
   }, []);
 
   const stats = [
@@ -183,7 +183,7 @@ export default function BuyerDashboard() {
                 </div>
               ))}
             </div>
-            <button className="w-full text-xs font-bold text-coffee uppercase tracking-[0.2em] py-4 bg-sand/30 rounded-xl hover:bg-sand/30 transition-all">
+            <button className="btn-outline w-full py-4 text-xs uppercase tracking-[0.2em] border-none bg-sand/30 hover:bg-sand/40">
               Activity Archive
             </button>
           </div>

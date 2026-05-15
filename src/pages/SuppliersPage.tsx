@@ -75,7 +75,7 @@ export default function SuppliersPage() {
             <div>
               <h2 className="text-4xl md:text-5xl font-display font-medium mb-8 leading-tight">Scale your <br />industrial output.</h2>
               <p className="text-white/60 text-lg mb-12 max-w-md font-medium">Connect your facility to our verified trade ecosystem and access professional procurement teams globally.</p>
-              <Link to="/signup" className="inline-flex items-center gap-3 px-8 py-4 bg-white text-coffee rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-white/90 transition-all">
+              <Link to="/signup" className="btn-secondary inline-flex items-center gap-3 px-8 py-4 uppercase tracking-widest border-none">
                 Register as Supplier <ChevronRight size={16} />
               </Link>
             </div>

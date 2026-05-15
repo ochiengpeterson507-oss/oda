@@ -51,16 +51,16 @@
 }
 
 @layer components {
-  .premium-card {
-    @apply bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-sand/60 shadow-[0_4px_24px_rgba(47,69,56,0.04)] transition-all duration-300 hover:shadow-[0_12px_40px_rgba(47,69,56,0.08)] hover:border-sand;
+  .card {
+    @apply bg-white border border-sand shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl;
   }
 
   .btn-primary {
-    @apply bg-forest text-cream px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-forest/90 hover:shadow-lg hover:shadow-forest/20 active:scale-[0.98];
+    @apply bg-gradient-to-r from-forest to-olive text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:shadow-md hover:shadow-olive/20 hover:opacity-95 active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply bg-white border border-sand text-forest px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-cream hover:border-olive/30 shadow-sm active:scale-[0.98];
+    @apply bg-white border border-sand text-coffee px-6 py-3 rounded-xl text-sm font-semibold transition-all hover:bg-cream hover:border-sand/80 shadow-sm active:scale-[0.98];
   }
 
   .btn-outline {
@@ -68,7 +68,7 @@
   }
 
   .input-field {
-    @apply w-full px-4 pr-12 py-3 bg-white text-coffee border border-sand rounded-xl text-base font-medium transition-all focus:outline-none focus:ring-4 focus:ring-olive/10 focus:border-olive/30 placeholder:text-stone/50 shadow-sm;
+    @apply w-full px-4 py-3 bg-white text-coffee border border-sand rounded-xl text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-olive/20 focus:border-olive placeholder:text-stone/40 shadow-sm;
   }
 
   .input-field:-webkit-autofill,
