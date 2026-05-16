@@ -17,6 +17,21 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     fetchMarketplaceData();
+
+    const newChannel = supabase
+      .channel('marketplace-products')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        (payload) => {
+          fetchMarketplaceData(); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(newChannel);
+    };
   }, [selectedCategory, search]);
 
   const fetchMarketplaceData = async () => {
@@ -187,7 +202,7 @@ export default function MarketplacePage() {
                       <p className="text-xs text-stone font-medium mb-4">{product.companies?.name}</p>
                       
                       <div className="flex items-center justify-between pt-4 border-t border-sand/50">
-                        <span className="text-sm font-bold">KSh {product.price?.toLocaleString()}</span>
+                        <span className="text-sm font-bold">KSh {parseFloat(product.price_range || 0).toLocaleString()}</span>
                         <span className="text-[10px] font-bold text-stone uppercase tracking-widest">/ {product.unit || 'Unit'}</span>
                       </div>
                     </div>

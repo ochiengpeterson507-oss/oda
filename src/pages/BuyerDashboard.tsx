@@ -22,38 +22,107 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-
-const data = [
-  { name: 'Mon', active: 400 },
-  { name: 'Tue', active: 300 },
-  { name: 'Wed', active: 600 },
-  { name: 'Thu', active: 800 },
-  { name: 'Fri', active: 500 },
-  { name: 'Sat', active: 900 },
-  { name: 'Sun', active: 700 },
-];
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function BuyerDashboard() {
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    activity: '+0%',
+    openInquiries: 0,
+    sourcingList: 0,
+    savedPartners: 0,
+  });
   
   useEffect(() => {
-    setLoading(false);
-  }, []);
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    fetchBuyerData();
 
-  const stats = [
-    { title: 'Market Activity', value: '+12.5%', icon: TrendingUp, color: 'text-olive', bg: 'bg-olive/10' },
-    { title: 'Open Inquiries', value: '4', icon: MessageSquare, color: 'text-clay', bg: 'bg-clay/10' },
-    { title: 'Sourcing List', value: '12', icon: ShoppingBag, color: 'text-coffee', bg: 'bg-sand/20' },
-    { title: 'Saved Partners', value: '28', icon: Heart, color: 'text-red-500', bg: 'bg-red-50' },
+    const newChannel = supabase
+      .channel(`buyer-dashboard-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'inquiries' },
+        (payload) => {
+          console.log('Buyer inquiry update:', payload);
+          fetchBuyerData(); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(newChannel);
+    };
+  }, [user, authLoading]);
+
+  const fetchBuyerData = async () => {
+    try {
+      setLoading(true);
+      // Fetch inquiries for the buyer
+      const { data: inqData } = await supabase
+        .from('inquiries')
+        .select('*, products(name, company_id)')
+        .eq('buyer_id', user!.id)
+        .order('created_at', { ascending: false });
+
+      if (inqData) {
+        setInquiries(inqData);
+        
+        const open = inqData.filter(i => i.status === 'pending').length;
+        const uniqueProducts = new Set(inqData.map(i => i.product_id)).size;
+        const uniqueCompanies = new Set(inqData.map(i => i.products?.company_id)).size;
+        
+        setStats({
+          activity: inqData.length > 0 ? '+12.5%' : '0%', // Mocked trend
+          openInquiries: open,
+          sourcingList: uniqueProducts,
+          savedPartners: uniqueCompanies,
+        });
+
+        // Generate chart data for the last 7 days
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const last7Days = Array.from({length: 7}).map((_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return {
+            name: days[d.getDay()],
+            active: 0,
+            date: d.toDateString()
+          };
+        });
+
+        inqData.forEach(inq => {
+          const inqDate = new Date(inq.created_at).toDateString();
+          const dayData = last7Days.find(d => d.date === inqDate);
+          if (dayData) {
+            dayData.active += 1;
+          }
+        });
+
+        setChartData(last7Days);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statCards = [
+    { title: 'Market Activity', value: stats.activity, icon: TrendingUp, color: 'text-olive', bg: 'bg-olive/10' },
+    { title: 'Open Inquiries', value: stats.openInquiries.toString(), icon: MessageSquare, color: 'text-clay', bg: 'bg-clay/10' },
+    { title: 'Sourcing List', value: stats.sourcingList.toString(), icon: ShoppingBag, color: 'text-coffee', bg: 'bg-sand/20' },
+    { title: 'Saved Partners', value: stats.savedPartners.toString(), icon: Heart, color: 'text-red-500', bg: 'bg-red-50' },
   ];
 
-  const activities = [
-    { type: 'inquiry', title: 'New quotation from TechSync Industrial', time: '2 hours ago', status: 'unread' },
-    { type: 'product', title: 'Industrial Lathe v2.0 restocked', time: '5 hours ago', status: 'read' },
-    { type: 'verification', title: 'Your profile has been verified', time: '1 day ago', status: 'verified' },
-  ];
-
-  if (loading) return (
+  if (loading || authLoading) return (
     <div className="space-y-8 animate-pulse">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-white rounded-3xl" />)}
@@ -79,7 +148,7 @@ export default function BuyerDashboard() {
 
       {/* Stats Grid - Minimalized */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
-        {stats.map((stat, idx) => (
+        {statCards.map((stat, idx) => (
           <motion.div 
             key={idx}
             initial={{ opacity: 0, y: 10 }}
@@ -112,7 +181,7 @@ export default function BuyerDashboard() {
             </div>
             <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#556B2F" stopOpacity={0.08}/>
@@ -166,22 +235,24 @@ export default function BuyerDashboard() {
               <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Recent First</span>
             </div>
             <div className="space-y-10">
-              {activities.map((act, idx) => (
-                <div key={idx} className="group relative">
+              {inquiries.slice(0, 5).map((inq, idx) => (
+                <div key={inq.id || idx} className="group relative">
                   <div className="flex items-start gap-4">
                     <div className={`mt-1 status-dot ${
-                      act.status === 'unread' ? 'bg-olive' : 
-                      act.status === 'verified' ? 'bg-coffee' : 'bg-stone/20'
+                      inq.status === 'pending' ? 'bg-orange-400' : 'bg-olive'
                     }`} />
                     <div className="space-y-2">
-                      <p className={`text-sm leading-tight font-medium ${act.status === 'unread' ? 'text-coffee' : 'text-stone/80'}`}>
-                        {act.title}
+                      <p className={`text-sm leading-tight font-medium ${inq.status === 'pending' ? 'text-coffee' : 'text-stone/80'}`}>
+                        Inquiry for {inq.products?.name || 'Product'} {inq.status === 'pending' ? 'sent' : 'resolved'}.
                       </p>
-                      <p className="text-[10px] text-stone/40 uppercase font-black tracking-widest">{act.time}</p>
+                      <p className="text-[10px] text-stone/40 uppercase font-black tracking-widest">{new Date(inq.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
                 </div>
               ))}
+              {inquiries.length === 0 && (
+                <p className="text-sm text-stone/60">No recent market activity.</p>
+              )}
             </div>
             <button className="btn-outline w-full py-4 text-xs uppercase tracking-[0.2em] border-none bg-sand/30 hover:bg-sand/40">
               Activity Archive

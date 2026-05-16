@@ -6,7 +6,7 @@ export const MOCK_PRODUCTS = [
     category_id: 'c1',
     categories: { name: 'Construction' },
     images: ['https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=800'],
-    price: 85000,
+    price: 85000, price_range: "85000",
     unit: 'Ton',
     companies: { name: 'Apex Steel Ltd', logo_url: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&q=80&w=100' },
     active: true
@@ -18,7 +18,7 @@ export const MOCK_PRODUCTS = [
     category_id: 'c2',
     categories: { name: 'Agro-processing' },
     images: ['https://images.unsplash.com/photo-1542336391-ae2936d8efe4?auto=format&fit=crop&q=80&w=800'],
-    price: 120000,
+    price: 120000, price_range: "120000",
     unit: 'Unit',
     companies: { name: 'SunCulture Energy', logo_url: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=100' },
     active: true
@@ -30,7 +30,7 @@ export const MOCK_PRODUCTS = [
     category_id: 'c3',
     categories: { name: 'Healthcare' },
     images: ['https://images.unsplash.com/photo-1584032762282-ec474600d7bb?auto=format&fit=crop&q=80&w=800'],
-    price: 65000,
+    price: 65000, price_range: "65000",
     unit: 'Unit',
     companies: { name: 'Pwani Medical Supplies', logo_url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=100' },
     active: true
@@ -42,7 +42,7 @@ export const MOCK_PRODUCTS = [
     category_id: 'c2',
     categories: { name: 'Agro-processing' },
     images: ['https://images.unsplash.com/photo-1474974913001-50d400177ad4?auto=format&fit=crop&q=80&w=800'],
-    price: 180000,
+    price: 180000, price_range: "180000",
     unit: 'Drum',
     companies: { name: 'Bidco Africa', logo_url: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?auto=format&fit=crop&q=80&w=100' },
     active: true
@@ -54,7 +54,7 @@ export const MOCK_PRODUCTS = [
     category_id: 'c1',
     categories: { name: 'Construction' },
     images: ['https://images.unsplash.com/photo-1590001000175-90b4001262cc?auto=format&fit=crop&q=80&w=800'],
-    price: 4500,
+    price: 4500, price_range: "4500",
     unit: 'Piece',
     companies: { name: 'Bamburi Cement', logo_url: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=100' },
     active: true
@@ -62,8 +62,8 @@ export const MOCK_PRODUCTS = [
 ];
 
 export const MOCK_CATEGORIES = [
-  { id: 'c1', name: 'Construction' },
-  { id: 'c2', name: 'Agro-processing' },
-  { id: 'c3', name: 'Healthcare' },
-  { id: 'c4', name: 'Tech Infrastructure' }
+  { id: '11111111-1111-1111-1111-111111111111', name: 'Construction' },
+  { id: '22222222-2222-2222-2222-222222222222', name: 'Agro-processing' },
+  { id: '33333333-3333-3333-3333-333333333333', name: 'Healthcare' },
+  { id: '44444444-4444-4444-4444-444444444444', name: 'Tech Infrastructure' }
 ];

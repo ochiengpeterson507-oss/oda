@@ -36,6 +36,21 @@ export default function ProductDetailsPage() {
 
   useEffect(() => {
     fetchProductDetails();
+
+    const newChannel = supabase
+      .channel('product-details-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products', filter: `id=eq.${id}` },
+        (payload) => {
+          fetchProductDetails(); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(newChannel);
+    };
   }, [id]);
 
   const fetchProductDetails = async () => {
@@ -61,12 +76,16 @@ export default function ProductDetailsPage() {
       buyer_id: user.id,
       product_id: product.id,
       message: inquiryMessage,
+      status: 'pending',
       subject: `Quotation Request for ${product.name}`
     });
 
     if (!error) {
       setInquirySent(true);
       setInquiryMessage('');
+    } else {
+      console.error(error);
+      alert('Error sending inquiry: ' + error.message);
     }
     setInquiryLoading(false);
   };
@@ -190,7 +209,7 @@ export default function ProductDetailsPage() {
                   </div>
                   <span className="text-[11px] font-bold text-coffee uppercase tracking-widest">4.8 Market Rating</span>
                 </div>
-                <p className="text-[28px] md:text-[32px] font-display font-medium text-olive tracking-tight">$1,200.00 - $4,500.00 <span className="text-xs font-bold text-stone/40 uppercase tracking-[0.2em] ml-2">per unit</span></p>
+                <p className="text-[28px] md:text-[32px] font-display font-medium text-olive tracking-tight">KSh {parseFloat(product.price_range || 0).toLocaleString()} <span className="text-xs font-bold text-stone/40 uppercase tracking-[0.2em] ml-2">per unit</span></p>
               </div>
             </div>
 
@@ -250,7 +269,12 @@ export default function ProductDetailsPage() {
                       <h4 className="text-xl font-display font-medium text-olive">Request Dispatched</h4>
                       <p className="text-sm text-olive/60 font-medium">Your inquiry has been routed to the vendor for prioritization.</p>
                     </div>
-                    <button onClick={() => setInquirySent(false)} className="text-xs font-bold text-olive uppercase tracking-widest border-b border-olive/20 pb-1">Initialize New Flow</button>
+                    <div className="space-y-4">
+                      <button onClick={() => setInquirySent(false)} className="text-[10px] font-bold text-stone/40 uppercase tracking-widest hover:text-olive transition-colors block mx-auto mb-2">Initialize New Flow</button>
+                      <Link to="/buyer" className="btn-primary w-full max-w-[200px] py-4 text-[10px] font-bold uppercase tracking-widest inline-block border border-olive shadow-md hover:shadow-lg transition-all active:scale-95 text-[#fdfbfe]">
+                        Go To Dashboard
+                      </Link>
+                    </div>
                   </motion.div>
                 ) : (
                   <form onSubmit={handleSendInquiry} className="space-y-8">
@@ -268,9 +292,9 @@ export default function ProductDetailsPage() {
                       <button 
                         type="submit" 
                         disabled={inquiryLoading}
-                        className="btn-primary flex-1 py-4 text-xs font-bold uppercase tracking-[0.3em]"
+                        className={`btn-primary flex-1 py-4 text-xs font-bold uppercase tracking-[0.3em] transition-all duration-200 active:scale-95 ${inquiryLoading ? 'opacity-70 cursor-not-allowed text-white/50' : ''}`}
                       >
-                        {inquiryLoading ? 'Processing...' : 'Verify Terms'}
+                        {inquiryLoading ? 'Dispatching...' : 'Send Inquiry Request'}
                       </button>
                       <button type="button" className="btn-outline flex-1 py-4 text-xs font-bold uppercase tracking-[0.3em]">
                         Channel Support

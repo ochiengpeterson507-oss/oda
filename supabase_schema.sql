@@ -40,12 +40,17 @@ CREATE TABLE public.products (
   name TEXT NOT NULL,
   description TEXT,
   price_range TEXT,
+  price NUMERIC,
   min_order_quantity TEXT,
   images TEXT[] DEFAULT '{}',
   featured BOOLEAN DEFAULT FALSE,
   active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Enable real-time for necessary tables
+-- alter publication supabase_realtime add table products;
+-- alter publication supabase_realtime add table inquiries;
 
 -- Inquiries table
 CREATE TABLE public.inquiries (
