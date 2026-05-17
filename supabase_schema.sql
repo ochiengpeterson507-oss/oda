@@ -49,22 +49,40 @@ CREATE TABLE public.products (
 );
 
 -- Enable real-time for necessary tables
--- alter publication supabase_realtime add table products;
--- alter publication supabase_realtime add table inquiries;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'profiles') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'companies') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE companies;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'products') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE products;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'inquiries') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE inquiries;
+  END IF;
+END $$;
 
 -- Inquiries table
 CREATE TABLE public.inquiries (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   buyer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  seller_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   subject TEXT,
   message TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived', 'resolved')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived', 'resolved', 'sent')),
   quote_price NUMERIC,
   quote_delivery TEXT,
   seller_response TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Note: If you are getting an error about the status check constraint, run this:
+-- ALTER TABLE public.inquiries DROP CONSTRAINT IF EXISTS inquiries_status_check;
+-- ALTER TABLE public.inquiries ADD CONSTRAINT inquiries_status_check CHECK (status IN ('pending', 'read', 'archived', 'resolved', 'sent'));
 
 -- Messages table (for real-time chat between buyer and seller)
 CREATE TABLE public.messages (
@@ -101,6 +119,9 @@ CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING
 -- Companies: Viewable by all, managed by owner
 CREATE POLICY "Companies are viewable by everyone" ON public.companies FOR SELECT USING (true);
 CREATE POLICY "Owners can manage their companies" ON public.companies FOR ALL USING (auth.uid() = owner_id);
+CREATE POLICY "Admins can manage all companies" ON public.companies FOR ALL USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+);
 
 -- Products: Viewable by all, managed by company owner
 CREATE POLICY "Products are viewable by everyone" ON public.products FOR SELECT USING (true);
@@ -110,10 +131,14 @@ CREATE POLICY "Owners can manage their products" ON public.products FOR ALL USIN
     WHERE companies.id = products.company_id AND companies.owner_id = auth.uid()
   )
 );
+CREATE POLICY "Admins can manage all products" ON public.products FOR ALL USING (
+  EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin')
+);
 
 -- Inquiries: Buyers see their own, sellers see inquiries for their products
 CREATE POLICY "Buyers can view their inquiries" ON public.inquiries FOR SELECT USING (auth.uid() = buyer_id);
 CREATE POLICY "Sellers can view inquiries for their products" ON public.inquiries FOR SELECT USING (
+  auth.uid() = seller_id OR 
   EXISTS (
     SELECT 1 FROM public.products p
     JOIN public.companies c ON p.company_id = c.id
@@ -122,6 +147,7 @@ CREATE POLICY "Sellers can view inquiries for their products" ON public.inquirie
 );
 CREATE POLICY "Buyers can create inquiries" ON public.inquiries FOR INSERT WITH CHECK (auth.uid() = buyer_id);
 CREATE POLICY "Sellers can update inquiries for their products" ON public.inquiries FOR UPDATE USING (
+  auth.uid() = seller_id OR 
   EXISTS (
     SELECT 1 FROM public.products p
     JOIN public.companies c ON p.company_id = c.id

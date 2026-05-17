@@ -108,17 +108,17 @@ export default function SellerDashboard() {
           
         if (prodData) {
           setProducts(prodData);
-          
-          if (prodData.length > 0) {
-            const productIds = prodData.map((p: any) => p.id);
-            const { data: inqData } = await supabase
-              .from('inquiries')
-              .select('*, profiles(full_name, email), products(name, price_range)')
-              .in('product_id', productIds)
-              .order('created_at', { ascending: false });
-            if (inqData) setInquiries(inqData);
-          }
         }
+        
+        const { data: inqData, error: inqError } = await supabase
+          .from('inquiries')
+          .select('*, profiles(full_name, email), products(name, price_range)')
+          .eq('seller_id', user!.id)
+          .order('created_at', { ascending: false });
+        
+        if (inqError) console.error("Error fetching inquiries:", inqError);
+        if (inqData) setInquiries(inqData);
+        else setInquiries([]);
       }
     } catch (error) {
       console.error(error);

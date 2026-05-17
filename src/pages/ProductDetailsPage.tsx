@@ -77,6 +77,7 @@ export default function ProductDetailsPage() {
     const { error } = await supabase.from('inquiries').insert({
       buyer_id: user.id,
       product_id: product.id,
+      seller_id: product.companies?.owner_id,
       message: inquiryMessage,
       status: 'pending',
       subject: `Quotation Request for ${product.name}`

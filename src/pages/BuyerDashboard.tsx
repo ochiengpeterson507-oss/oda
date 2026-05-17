@@ -49,7 +49,7 @@ export default function BuyerDashboard() {
       .channel(`buyer-dashboard-${user.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'inquiries' },
+        { event: '*', schema: 'public', table: 'inquiries', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
           console.log('Buyer inquiry update:', payload);
           fetchBuyerData(); 
