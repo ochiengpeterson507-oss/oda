@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [role, setRole] = useState<'buyer' | 'seller'>('buyer');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
   const navigate = useNavigate();
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -26,7 +27,7 @@ export default function SignupPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -41,10 +42,30 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      // Typically show a verification message or redirect
-      navigate('/dashboard');
+      if (data?.session === null) {
+        setVerificationSent(true);
+      } else {
+        navigate('/dashboard');
+      }
+      setLoading(false);
     }
   };
+
+  const handleResend = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    if (error) {
+      setError(error.message);
+    } else {
+      alert("Verification email re-sent!");
+    }
+    setLoading(false);
+  };
+
 
   const handleGoogleLogin = async () => {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'placeholder';
@@ -61,6 +82,43 @@ export default function SignupPage() {
     });
     if (error) setError(error.message);
   };
+
+  if (verificationSent) {
+    return (
+      <AuthLayout 
+        role={role}
+        title="Check Your Email" 
+        subtitle="We've sent a verification link to your email address. Please verify to continue."
+      >
+        <div className="space-y-8 mt-8">
+          <div className="p-6 bg-olive/5 border border-olive/20 rounded-xl text-center">
+            <Mail className="mx-auto text-olive mb-4" size={32} />
+            <p className="text-sm font-medium text-coffee mb-2">Confirmation link sent to:</p>
+            <p className="font-bold text-olive">{email}</p>
+          </div>
+          
+          <div className="space-y-4">
+            <button 
+              onClick={handleResend}
+              disabled={loading}
+              className="btn-outline w-full py-4 text-xs uppercase tracking-[0.3em] disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Resend Email'}
+            </button>
+            {error && (
+              <p className="text-center text-[10px] text-clay font-medium uppercase tracking-widest">{error}</p>
+            )}
+            
+            <div className="text-center pt-4">
+              <Link to="/login" className="text-[11px] font-bold text-stone/40 uppercase tracking-[0.2em] hover:text-coffee transition-colors">
+                Return to Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout 

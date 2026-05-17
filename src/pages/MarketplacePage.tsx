@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { MOCK_PRODUCTS, MOCK_CATEGORIES } from '../lib/mockData';
 import { Search, Filter, ArrowRight, Star, MapPin, Layers, ShoppingBag, X } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
@@ -42,14 +41,13 @@ export default function MarketplacePage() {
     if (catData && catData.length > 0) {
       setCategories(catData);
     } else {
-      setCategories(MOCK_CATEGORIES);
+      setCategories([]);
     }
 
     // Fetch products
     let query = supabase
       .from('products')
-      .select('*, companies(*), categories(*)')
-      .eq('active', true);
+      .select('*, companies(*), categories(*)');
 
     if (selectedCategory) {
       query = query.eq('category_id', selectedCategory);
@@ -63,18 +61,7 @@ export default function MarketplacePage() {
     if (prodData && prodData.length > 0) {
       setProducts(prodData);
     } else {
-      // Fallback to filtered mock data
-      let filtered = [...MOCK_PRODUCTS];
-      if (selectedCategory) {
-        filtered = filtered.filter(p => p.category_id === selectedCategory);
-      }
-      if (search) {
-        filtered = filtered.filter(p => 
-          p.name.toLowerCase().includes(search.toLowerCase()) || 
-          p.companies.name.toLowerCase().includes(search.toLowerCase())
-        );
-      }
-      setProducts(filtered);
+      setProducts([]);
     }
     setLoading(false);
   };

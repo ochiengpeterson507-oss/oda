@@ -59,7 +59,10 @@ CREATE TABLE public.inquiries (
   product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
   subject TEXT,
   message TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived')),
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'read', 'archived', 'resolved')),
+  quote_price NUMERIC,
+  quote_delivery TEXT,
+  seller_response TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -118,6 +121,13 @@ CREATE POLICY "Sellers can view inquiries for their products" ON public.inquirie
   )
 );
 CREATE POLICY "Buyers can create inquiries" ON public.inquiries FOR INSERT WITH CHECK (auth.uid() = buyer_id);
+CREATE POLICY "Sellers can update inquiries for their products" ON public.inquiries FOR UPDATE USING (
+  EXISTS (
+    SELECT 1 FROM public.products p
+    JOIN public.companies c ON p.company_id = c.id
+    WHERE p.id = inquiries.product_id AND c.owner_id = auth.uid()
+  )
+);
 
 -- 3. Functions & Triggers
 

@@ -229,7 +229,7 @@ export default function BuyerDashboard() {
 
         {/* Sidebar Activity */}
         <div className="space-y-16">
-          <div className="space-y-10">
+          <div id="inquiries" className="space-y-10">
             <div className="flex items-center justify-between pb-4 border-b border-sand/50">
               <h3 className="text-xs font-bold text-coffee uppercase tracking-[0.3em]">Market Activity</h3>
               <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Recent First</span>
@@ -259,7 +259,7 @@ export default function BuyerDashboard() {
             </button>
           </div>
 
-          <div className="space-y-8">
+          <div id="settings" className="space-y-8">
             <h3 className="text-xs font-bold text-coffee uppercase tracking-[0.3em] pb-4 border-b border-sand/50">Portal Actions</h3>
             <div className="grid grid-cols-1 gap-2">
               {[

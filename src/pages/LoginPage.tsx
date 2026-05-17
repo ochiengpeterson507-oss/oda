@@ -53,6 +53,21 @@ export default function LoginPage() {
     if (error) setError(error.message);
   };
 
+  const handleResend = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    if (error) {
+      setError(error.message);
+    } else {
+      alert("Verification email re-sent! Please check your inbox.");
+    }
+    setLoading(false);
+  };
+
   return (
     <AuthLayout 
       title="Gateway Access" 
@@ -63,10 +78,21 @@ export default function LoginPage() {
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="p-4 bg-clay/5 border border-clay/20 rounded-xl flex items-center gap-3 text-clay text-[11px] font-medium"
+            className="p-4 bg-clay/5 border border-clay/20 rounded-xl flex flex-col gap-3 text-clay text-[11px] font-medium"
           >
-            <AlertCircle size={14} />
-            {error}
+            <div className="flex items-center gap-3">
+              <AlertCircle size={14} />
+              {error}
+            </div>
+            {error.toLowerCase().includes('email not confirmed') && (
+              <button 
+                type="button" 
+                onClick={handleResend}
+                className="btn-outline py-2 text-[10px] w-full border-clay/30 text-clay hover:bg-clay hover:text-white"
+              >
+                Resend Confirmation Email
+              </button>
+            )}
           </motion.div>
         )}
         

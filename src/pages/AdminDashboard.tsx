@@ -107,8 +107,8 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto pb-4">
+          <table className="w-full min-w-[600px]">
             <thead className="text-left">
               <tr>
                 <th className="pb-4 text-[11px] font-bold uppercase tracking-widest text-stone/40">Entity Identity</th>

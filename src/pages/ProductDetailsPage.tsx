@@ -32,6 +32,7 @@ export default function ProductDetailsPage() {
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [inquirySent, setInquirySent] = useState(false);
   const [inquiryMessage, setInquiryMessage] = useState('');
+  const [inquiryError, setInquiryError] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function ProductDetailsPage() {
     if (!user) return navigate('/login');
     
     setInquiryLoading(true);
+    setInquiryError(null);
     const { error } = await supabase.from('inquiries').insert({
       buyer_id: user.id,
       product_id: product.id,
@@ -85,7 +87,7 @@ export default function ProductDetailsPage() {
       setInquiryMessage('');
     } else {
       console.error(error);
-      alert('Error sending inquiry: ' + error.message);
+      setInquiryError('Error sending inquiry: ' + error.message);
     }
     setInquiryLoading(false);
   };
@@ -278,6 +280,11 @@ export default function ProductDetailsPage() {
                   </motion.div>
                 ) : (
                   <form onSubmit={handleSendInquiry} className="space-y-8">
+                    {inquiryError && (
+                      <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium">
+                        {inquiryError}
+                      </div>
+                    )}
                     <div className="space-y-3">
                       <label className="text-[10px] font-bold uppercase tracking-[0.3em] text-stone/40 ml-1">Specifications & Context</label>
                       <textarea 

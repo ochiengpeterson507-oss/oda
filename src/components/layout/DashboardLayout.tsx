@@ -23,12 +23,12 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navigation = [
-    { name: 'Overview', href: '/dashboard/overview', icon: LayoutDashboard },
+    { name: 'Overview', href: profile?.role === 'buyer' ? '/dashboard/overview' : '/dashboard/overview', icon: LayoutDashboard },
     { name: 'Marketplace', href: '/marketplace', icon: ShoppingBag },
     { name: 'Seller Center', href: '/dashboard/seller', icon: Store, role: 'seller' },
     { name: 'Admin Panel', href: '/dashboard/admin', icon: ShieldAlert, role: 'admin' },
-    { name: 'Inquiries', href: '#', icon: MessageSquare },
-    { name: 'Settings', href: '#', icon: Settings },
+    { name: 'Inquiries', href: '#inquiries', icon: MessageSquare },
+    { name: 'Settings', href: '#settings', icon: Settings },
   ];
 
   const filteredNavigation = navigation.filter(item => 
@@ -76,8 +76,18 @@ export default function DashboardLayout() {
               return (
                 <Link
                   key={item.name}
-                  to={item.href}
-                  onClick={() => setSidebarOpen(false)}
+                  to={item.href.startsWith('#') ? '#' : item.href}
+                  onClick={(e) => {
+                    setSidebarOpen(false);
+                    if (item.href.startsWith('#')) {
+                      e.preventDefault();
+                      const targetId = item.href.substring(1);
+                      const element = document.getElementById(targetId);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }
+                  }}
                   className={`
                     flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group
                     ${isActive 

@@ -3,7 +3,6 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MOCK_CATEGORIES } from '../lib/mockData';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
   Building2, 
@@ -19,7 +18,8 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlertCircle,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react';
 
 export default function SellerDashboard() {
@@ -38,6 +38,10 @@ export default function SellerDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+  const [quoteData, setQuoteData] = useState({ price: '', estimated_delivery: '', message: '' });
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -79,7 +83,7 @@ export default function SellerDashboard() {
     if (data && data.length > 0) {
       setCategories(data);
     } else {
-      setCategories(MOCK_CATEGORIES);
+      setCategories([]);
     }
   };
 
@@ -121,6 +125,36 @@ export default function SellerDashboard() {
     } finally {
       if (!isRealtimeUpdate) setLoading(false);
     }
+  };
+
+  const handleOpenQuoteModal = (inquiry: any) => {
+    setSelectedInquiry(inquiry);
+    setQuoteData({ price: inquiry.products?.price_range || '', estimated_delivery: '', message: '' });
+    setShowQuoteModal(true);
+  };
+
+  const handleSendQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInquiry) return;
+    setQuoteSubmitting(true);
+    
+    const { error } = await supabase
+      .from('inquiries')
+      .update({ 
+        status: 'resolved',
+        quote_price: parseFloat(quoteData.price) || 0,
+        quote_delivery: quoteData.estimated_delivery,
+        seller_response: quoteData.message
+      })
+      .eq('id', selectedInquiry.id);
+
+    if (!error) {
+      await fetchSellerData(true);
+      setShowQuoteModal(false);
+    } else {
+      setErrorMsg('Error sending quote: ' + error.message);
+    }
+    setQuoteSubmitting(false);
   };
 
   const handleResolveInquiry = async (inquiryId: string) => {
@@ -165,22 +199,7 @@ export default function SellerDashboard() {
     
     let finalCategoryId = newProduct.category_id || (categories.length > 0 ? categories[0].id : null);
     
-    // If it's a mock category UUID, we need to create it in the database first to avoid foreign key errors
-    const mockCategory = MOCK_CATEGORIES.find(c => c.id === finalCategoryId);
-    if (mockCategory) {
-      const { data: newCat } = await supabase.from('categories').insert({
-        name: mockCategory.name,
-        slug: mockCategory.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-      }).select().single();
-      
-      if (newCat) {
-        finalCategoryId = newCat.id;
-        // update local list
-        setCategories([...categories.filter(c => !MOCK_CATEGORIES.map(m => m.id).includes(c.id)), newCat]);
-      } else {
-        finalCategoryId = null; // fallback to null if insert fails
-      }
-    } else if (newProduct.category_id === 'new' && newProduct.new_category_name) {
+    if (newProduct.category_id === 'new' && newProduct.new_category_name) {
       const { data: newCat } = await supabase.from('categories').insert({
         name: newProduct.new_category_name,
         slug: newProduct.new_category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
@@ -389,7 +408,7 @@ export default function SellerDashboard() {
             </div>
 
             {/* Inquiry Queue */}
-            <div className="space-y-8">
+            <div id="inquiries" className="space-y-8">
               <div className="flex items-center justify-between pb-4 border-b border-sand/50">
                 <div className="space-y-1">
                   <h3 className="text-xs font-bold text-coffee uppercase tracking-[0.3em]">Communication Stream</h3>
@@ -438,7 +457,7 @@ export default function SellerDashboard() {
                             </td>
                             <td className="py-4 px-6 text-right">
                               {inq.status === 'pending' ? (
-                                <button disabled={resolvingId === inq.id} onClick={() => handleResolveInquiry(inq.id)} className={`btn-outline px-4 py-2 text-[10px] uppercase tracking-widest transition-all ${resolvingId === inq.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-coffee hover:text-white hover:border-coffee active:scale-95'}`}>{resolvingId === inq.id ? 'Resolving...' : 'Resolve'}</button>
+                                <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Respond</button>
                               ) : (
                                 <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Resolved</span>
                               )}
@@ -486,7 +505,7 @@ export default function SellerDashboard() {
                         <div className="flex justify-between items-center pt-2">
                            <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
                            {inq.status === 'pending' ? (
-                             <button disabled={resolvingId === inq.id} onClick={() => handleResolveInquiry(inq.id)} className={`btn-outline px-4 py-2 text-[10px] uppercase tracking-widest transition-all ${resolvingId === inq.id ? 'opacity-50 cursor-not-allowed' : 'hover:bg-coffee hover:text-white hover:border-coffee active:scale-95'}`}>{resolvingId === inq.id ? 'Wait...' : 'Resolve'}</button>
+                             <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Respond</button>
                            ) : (
                              <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Resolved</span>
                            )}
@@ -509,7 +528,7 @@ export default function SellerDashboard() {
 
           <div className="space-y-16">
             {/* Company Card - Premium UI */}
-            <div className="space-y-10">
+            <div id="settings" className="space-y-10">
               <div className="pb-4 border-b border-sand">
                  <h3 className="text-xs font-bold text-coffee uppercase tracking-[0.3em]">Corporate Profile</h3>
               </div>
@@ -698,6 +717,70 @@ export default function SellerDashboard() {
                 className="btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.2em] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? 'Publishing...' : 'Publish Listing'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {showQuoteModal && selectedInquiry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-sand/80 backdrop-blur-sm">
+          <div className="card w-full max-w-md p-8 relative">
+            <button 
+              onClick={() => setShowQuoteModal(false)}
+              className="absolute top-4 right-4 text-stone/40 hover:text-coffee transition-colors"
+            >
+              <X size={24} strokeWidth={1.5} />
+            </button>
+            <h3 className="text-xl font-display font-medium text-coffee mb-6">Respond to Inquiry</h3>
+            <p className="text-sm font-medium text-stone/60 mb-6">
+              Product: <span className="font-bold text-coffee">{selectedInquiry.products?.name}</span>
+            </p>
+            {errorMsg && (
+              <div className="mb-6 p-4 bg-red-50 text-red-600 text-sm rounded-xl flex items-center gap-2">
+                <AlertCircle size={16} />
+                {errorMsg}
+              </div>
+            )}
+            <form onSubmit={handleSendQuote} className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Quote Price (KES)</label>
+                <input 
+                  type="number" 
+                  required
+                  className="input-field w-full px-4 py-3 text-sm"
+                  placeholder="e.g. 50000"
+                  value={quoteData.price}
+                  onChange={e => setQuoteData({...quoteData, price: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Estimated Delivery</label>
+                <input 
+                  type="text" 
+                  required
+                  className="input-field w-full px-4 py-3 text-sm"
+                  placeholder="e.g. 3-5 Business Days"
+                  value={quoteData.estimated_delivery}
+                  onChange={e => setQuoteData({...quoteData, estimated_delivery: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Message to Buyer</label>
+                <textarea 
+                  required
+                  rows={4}
+                  className="input-field w-full px-4 py-3 text-sm resize-none"
+                  placeholder="Add any terms, conditions, or greetings..."
+                  value={quoteData.message}
+                  onChange={e => setQuoteData({...quoteData, message: e.target.value})}
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={quoteSubmitting}
+                className="btn-primary w-full py-4 text-xs font-bold uppercase tracking-[0.2em] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {quoteSubmitting ? 'Sending Request...' : 'Send Quote'}
               </button>
             </form>
           </div>
