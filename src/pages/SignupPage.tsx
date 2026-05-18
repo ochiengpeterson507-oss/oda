@@ -39,7 +39,11 @@ export default function SignupPage() {
     });
 
     if (error) {
-      setError(error.message);
+      if (error.message.toLowerCase().includes('error sending confirmation email') || error.message.toLowerCase().includes('rate limit')) {
+        setError("We couldn't send the confirmation email at this time. Please try again later or contact support if the issue persists.");
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
     } else {
       if (data?.session === null) {
@@ -95,6 +99,17 @@ export default function SignupPage() {
             <Mail className="mx-auto text-olive mb-4" size={32} />
             <p className="text-sm font-medium text-coffee mb-2">Confirmation link sent to:</p>
             <p className="font-bold text-olive">{email}</p>
+          </div>
+          
+          <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl text-[11px] text-orange-700">
+            <p className="font-bold uppercase tracking-widest mb-1">Not receiving the email via Resend?</p>
+            <p className="mb-2">If you have configured Resend but emails aren't arriving, check the following:</p>
+            <ol className="list-decimal pl-4 mt-2 space-y-2 font-medium">
+               <li><strong>Sender Email Mismatch:</strong> In Supabase (Auth &gt; Configuration &gt; Email), ensure the "Sender Email" uses exactly the domain you verified in Resend (e.g., updates@yourdomain.com).</li>
+               <li><strong>Resend Free Tier Limit:</strong> If you haven't added a custom domain in Resend, you can <strong>only</strong> send emails to your own email address (the one used to create the Resend account).</li>
+               <li><strong>Check Resend Logs:</strong> Go to the <a href="https://resend.com/emails" target="_blank" rel="noreferrer" className="underline">Resend Emails dashboard</a> to see if Supabase attempted to send the email and if it bounced or was rejected.</li>
+            </ol>
+            <p className="mt-3 text-stone/50 font-medium">For testing, you can temporarily disable "Confirm email" in Supabase Auth &gt; Providers &gt; Email.</p>
           </div>
           
           <div className="space-y-4">

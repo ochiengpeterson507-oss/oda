@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   AlertCircle,
   TrendingUp,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
 
 export default function SellerDashboard() {
@@ -34,7 +35,9 @@ export default function SellerDashboard() {
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: '', industry: '' });
-  const [newProduct, setNewProduct] = useState({ name: '', description: '', price: '', category_id: '', new_category_name: '', image_url: '' });
+  const [newProduct, setNewProduct] = useState({ name: '', description: '', price: '', unit: '', category_id: '', new_category_name: '', image_url: '' });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -112,7 +115,7 @@ export default function SellerDashboard() {
         
         const { data: inqData, error: inqError } = await supabase
           .from('inquiries')
-          .select('*, profiles(full_name, email), products(name, price_range)')
+          .select('*, buyer:profiles!buyer_id(full_name, email), products(name, price_range)')
           .eq('seller_id', user!.id)
           .order('created_at', { ascending: false });
         
@@ -200,15 +203,78 @@ export default function SellerDashboard() {
     let finalCategoryId = newProduct.category_id || (categories.length > 0 ? categories[0].id : null);
     
     if (newProduct.category_id === 'new' && newProduct.new_category_name) {
-      const { data: newCat } = await supabase.from('categories').insert({
-        name: newProduct.new_category_name,
-        slug: newProduct.new_category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-      }).select().single();
+      const slug = newProduct.new_category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'category';
       
-      if (newCat) {
-        finalCategoryId = newCat.id;
-        setCategories([...categories, newCat]);
+      // First check if the category already exists
+      const { data: existingCat } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('slug', slug)
+        .single();
+        
+      if (existingCat) {
+        finalCategoryId = existingCat.id;
+        // Check if we need to add it to local state
+        if (!categories.find(c => c.id === existingCat.id)) {
+          setCategories(prev => [...prev, existingCat]);
+        }
+      } else {
+        // Create new category
+        const { data: newCat, error: catError } = await supabase.from('categories').insert({
+          name: newProduct.new_category_name,
+          slug
+        }).select().single();
+        
+        if (catError) {
+          // Handle potential race condition where category is created between our check and insert
+          if (catError.message?.includes('duplicate key') || catError.message?.includes('unique constraint')) {
+            const { data: retryCat } = await supabase.from('categories').select('*').eq('slug', slug).single();
+            if (retryCat) {
+              finalCategoryId = retryCat.id;
+              if (!categories.find(c => c.id === retryCat.id)) {
+                setCategories(prev => [...prev, retryCat]);
+              }
+            } else {
+              console.error('Error creating category:', catError);
+              setErrorMsg('Error creating category: ' + catError.message);
+              setSubmitting(false);
+              return;
+            }
+          } else {
+            console.error('Error creating category:', catError);
+            setErrorMsg('Error creating category: ' + catError.message);
+            setSubmitting(false);
+            return;
+          }
+        } else if (newCat) {
+          finalCategoryId = newCat.id;
+          setCategories(prev => [...prev, newCat]);
+        }
       }
+    }
+
+    let imageUrl = newProduct.image_url;
+    
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${company.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, imageFile);
+        
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        setErrorMsg('Image upload failed: ' + uploadError.message + '. Please ensure you ran the storage setup SQL.');
+        setSubmitting(false);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+        
+      imageUrl = publicUrl;
     }
 
     const { error } = await supabase.from('products').insert({
@@ -216,20 +282,45 @@ export default function SellerDashboard() {
       name: newProduct.name,
       description: newProduct.description,
       price_range: newProduct.price.toString(),
+      unit: newProduct.unit || 'Unit',
       category_id: finalCategoryId,
-      images: [newProduct.image_url || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1200']
+      images: [imageUrl || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1200']
     });
     
     if (error) {
       console.error('Error inserting product:', error);
       setErrorMsg('Error publishing listing: ' + error.message);
     } else {
-      setNewProduct({ name: '', description: '', price: '', category_id: '', new_category_name: '', image_url: '' });
+      setNewProduct({ name: '', description: '', price: '', unit: '', category_id: '', new_category_name: '', image_url: '' });
+      setImageFile(null);
       setShowProductModal(false);
       setErrorMsg('');
       fetchSellerData(true);
     }
     setSubmitting(false);
+  };
+
+  const handleDeleteProduct = async (productId: string, images: string[]) => {
+    if (!window.confirm("Are you sure you want to delete this listing?")) return;
+    
+    // Attempt to remove image from storage if it is a Supabase Storage URL
+    if (images && images.length > 0) {
+      for (const url of images) {
+        if (url.includes('product-images')) {
+          const fileName = url.split('/').pop();
+          if (fileName) {
+            await supabase.storage.from('product-images').remove([fileName]);
+          }
+        }
+      }
+    }
+
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (!error) {
+       fetchSellerData(true);
+    } else {
+       alert("Error deleting product: " + error.message);
+    }
   };
 
   if (loading || authLoading) return (
@@ -280,57 +371,62 @@ export default function SellerDashboard() {
 
       {company && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="card p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div className="w-10 h-10 rounded-full bg-olive/10 flex items-center justify-center text-olive">
-                 <Package size={20} strokeWidth={1.5} />
+          <div className="bg-white border border-sand rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-sand/80 transition-colors shadow-sm">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-forest/5 rounded-full group-hover:bg-forest/10 transition-colors pointer-events-none" />
+            <div className="flex justify-between items-start relative z-10">
+              <div className="w-10 h-10 rounded-full border border-forest/20 flex items-center justify-center text-forest bg-white">
+                 <Package size={18} strokeWidth={2} />
               </div>
             </div>
-            <div>
-               <p className="text-3xl font-display font-semibold text-coffee">{products.length}</p>
-               <p className="text-[11px] font-bold text-stone/40 uppercase tracking-widest mt-1">Active Listings</p>
+            <div className="relative z-10 mt-2">
+               <p className="text-4xl font-display font-medium text-coffee tracking-tight">{products.length}</p>
+               <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Active Listings</p>
             </div>
           </div>
-          <div className="card p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div className="w-10 h-10 rounded-full bg-forest/10 flex items-center justify-center text-forest">
-                 <MessageSquare size={20} strokeWidth={1.5} />
+          <div className="bg-white border border-sand rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-sand/80 transition-colors shadow-sm">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-orange-500/5 rounded-full group-hover:bg-orange-500/10 transition-colors pointer-events-none" />
+            <div className="flex justify-between items-start relative z-10">
+              <div className="w-10 h-10 rounded-full border border-orange-500/20 flex items-center justify-center text-orange-500 bg-white">
+                 <MessageSquare size={18} strokeWidth={2} />
               </div>
               {inquiries.filter(i => i.status === 'pending').length > 0 && (
-                <span className="text-[10px] font-bold text-forest uppercase tracking-widest bg-forest/10 px-2 py-1 rounded-full">
-                  {inquiries.filter(i => i.status === 'pending').length} New
+                <span className="text-[9px] font-bold text-orange-600 uppercase tracking-widest bg-orange-50 px-2.5 py-1 rounded-full border border-orange-500/20">
+                  {inquiries.filter(i => i.status === 'pending').length} Action Req
                 </span>
               )}
             </div>
-            <div>
-               <p className="text-3xl font-display font-semibold text-coffee">{inquiries.length}</p>
-               <p className="text-[11px] font-bold text-stone/40 uppercase tracking-widest mt-1">Total Inquiries</p>
+            <div className="relative z-10 mt-2">
+               <p className="text-4xl font-display font-medium text-coffee tracking-tight">{inquiries.length}</p>
+               <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Total Inquiries</p>
             </div>
           </div>
-          <div className="card p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div className="w-10 h-10 rounded-full bg-clay/10 flex items-center justify-center text-clay">
-                 <ShoppingBag size={20} strokeWidth={1.5} />
+          <div className="bg-white border border-sand rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-sand/80 transition-colors shadow-sm">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-clay/5 rounded-full group-hover:bg-clay/10 transition-colors pointer-events-none" />
+            <div className="flex justify-between items-start relative z-10">
+              <div className="w-10 h-10 rounded-full border border-clay/20 flex items-center justify-center text-clay bg-white">
+                 <ShoppingBag size={18} strokeWidth={2} />
               </div>
             </div>
-            <div>
-               <p className="text-3xl font-display font-semibold text-coffee">
+            <div className="relative z-10 mt-2">
+               <p className="text-4xl font-display font-medium text-coffee tracking-tight">
                  {inquiries.filter(i => i.status === 'resolved').length}
                </p>
-               <p className="text-[11px] font-bold text-stone/40 uppercase tracking-widest mt-1">Orders Processed</p>
+               <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Orders Processed</p>
             </div>
           </div>
-           <div className="card p-6 flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div className="w-10 h-10 rounded-full bg-coffee/10 flex items-center justify-center text-coffee">
-                 <TrendingUp size={20} strokeWidth={1.5} />
+           <div className="bg-white border border-sand rounded-2xl p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-sand/80 transition-colors shadow-sm">
+            <div className="absolute -right-4 -top-4 w-24 h-24 bg-coffee/5 rounded-full group-hover:bg-coffee/10 transition-colors pointer-events-none" />
+            <div className="flex justify-between items-start relative z-10">
+              <div className="w-10 h-10 rounded-full border border-coffee/20 flex items-center justify-center text-coffee bg-white">
+                 <TrendingUp size={18} strokeWidth={2} />
               </div>
             </div>
-            <div>
-               <p className="text-3xl font-display font-semibold text-coffee">
-                 KES {inquiries.filter(i => i.status === 'resolved').reduce((acc, inq) => acc + (parseFloat(inq.products?.price_range) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="relative z-10 mt-2">
+               <p className="text-4xl font-display font-medium text-coffee tracking-tight">
+                 <span className="text-lg text-stone/40 font-semibold align-top mr-1">KES</span>
+                 {inquiries.filter(i => i.status === 'resolved').reduce((acc, inq) => acc + (parseFloat(inq.products?.price_range) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                </p>
-               <p className="text-[11px] font-bold text-stone/40 uppercase tracking-widest mt-1">Revenue YTD</p>
+               <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Revenue YTD</p>
             </div>
           </div>
         </div>
@@ -391,8 +487,12 @@ export default function SellerDashboard() {
                       <button className="p-2.5 text-stone/40 hover:text-coffee transition-colors">
                         <Settings size={16} strokeWidth={1.5} />
                       </button>
-                      <button className="p-2.5 text-stone/40 hover:text-coffee transition-colors">
-                        <ExternalLink size={16} strokeWidth={1.5} />
+                      <button 
+                        onClick={() => handleDeleteProduct(product.id, product.images)}
+                        className="p-2.5 text-red-800/40 hover:text-red-600 transition-colors"
+                        title="Delete Listing"
+                      >
+                        <Trash2 size={16} strokeWidth={1.5} />
                       </button>
                     </div>
                   </div>
@@ -417,37 +517,47 @@ export default function SellerDashboard() {
                 <button className="text-[10px] font-bold uppercase tracking-widest text-coffee/40 hover:text-coffee transition-colors">Unified Inbox</button>
               </div>
               
-                <div className="bg-white border border-sand rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-white border border-sand rounded-2xl shadow-sm overflow-hidden">
                   {/* Desktop Table */}
                   <div className="hidden md:block overflow-x-auto min-w-full">
-                    <table className="w-full min-w-[700px]">
-                      <thead className="bg-sand/10 border-b border-sand/50">
-                        <tr>
-                          <th className="py-4 px-6 text-left text-[11px] font-bold uppercase tracking-widest text-stone/60">Purchasing Entity</th>
-                          <th className="py-4 px-6 text-left text-[11px] font-bold uppercase tracking-widest text-stone/60">Reference Node</th>
-                          <th className="py-4 px-6 text-left text-[11px] font-bold uppercase tracking-widest text-stone/60">Protocol</th>
-                          <th className="py-4 px-6 text-right text-[11px] font-bold uppercase tracking-widest text-stone/60">Action</th>
+                    <table className="w-full min-w-[900px] text-left">
+                      <thead>
+                        <tr className="border-b border-sand/50">
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5">Date</th>
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5">Purchasing Entity</th>
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5">Reference Node</th>
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5 max-w-[200px]">Message</th>
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5">Protocol</th>
+                          <th className="font-sans py-4 px-6 text-[10px] font-bold uppercase tracking-[0.2em] text-stone/50 bg-stone/5 text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-sand/30">
                         {inquiries.map((inq, i) => (
                           <tr key={i} className="hover:bg-sand/5 transition-colors group">
+                            <td className="py-4 px-6 text-[11px] font-medium text-stone/60 whitespace-nowrap">
+                              {new Date(inq.created_at).toLocaleDateString()}
+                            </td>
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-full bg-sand/30 border border-sand/50 flex items-center justify-center text-[11px] font-bold text-coffee uppercase shrink-0">
-                                  {inq.profiles?.full_name?.charAt(0) || '?'}
+                                  {inq.buyer?.full_name?.charAt(0) || '?'}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-coffee truncate">{inq.profiles?.full_name || 'Anonymous Buyer'}</p>
-                                  <p className="text-[11px] text-stone/50 font-medium tracking-tight truncate">{inq.profiles?.email}</p>
+                                  <p className="text-sm font-semibold text-coffee truncate">{inq.buyer?.full_name || 'Anonymous Buyer'}</p>
+                                  <p className="text-[11px] text-stone/50 font-medium tracking-tight truncate">{inq.buyer?.email}</p>
                                 </div>
                               </div>
                             </td>
                             <td className="py-4 px-6 max-w-[200px]">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-[12px] font-bold text-coffee uppercase tracking-wider truncate">{inq.products?.name}</span>
-                                <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
-                              </div>
+                               <div className="flex flex-col gap-1">
+                                 <span className="text-[12px] font-semibold text-coffee truncate">{inq.products?.name}</span>
+                                 <span className="font-mono text-[10px] uppercase text-stone/40">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
+                               </div>
+                            </td>
+                            <td className="py-4 px-6 max-w-[250px]">
+                              <p className="text-[12px] text-stone/60 line-clamp-2" title={inq.message}>
+                                {inq.message || 'No message provided.'}
+                              </p>
                             </td>
                             <td className="py-4 px-6">
                               <div className="flex items-center gap-2">
@@ -466,7 +576,7 @@ export default function SellerDashboard() {
                         ))}
                         {inquiries.length === 0 && (
                           <tr>
-                            <td colSpan={4} className="py-16 text-center">
+                            <td colSpan={6} className="py-16 text-center">
                                <div className="w-12 h-12 bg-sand/20 rounded-full flex items-center justify-center mx-auto mb-4 text-stone/30">
                                  <MessageSquare size={20} strokeWidth={1.5} />
                                </div>
@@ -486,16 +596,19 @@ export default function SellerDashboard() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-8 h-8 rounded-full bg-sand/30 border border-sand/50 flex items-center justify-center text-[10px] font-bold text-coffee uppercase shrink-0">
-                              {inq.profiles?.full_name?.charAt(0) || '?'}
+                              {inq.buyer?.full_name?.charAt(0) || '?'}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold text-coffee truncate">{inq.profiles?.full_name || 'Anonymous Buyer'}</p>
-                              <p className="text-[10px] text-stone/50 font-medium tracking-tight truncate">{inq.profiles?.email}</p>
+                              <p className="text-sm font-semibold text-coffee truncate">{inq.buyer?.full_name || 'Anonymous Buyer'}</p>
+                              <p className="text-[10px] text-stone/50 font-medium tracking-tight truncate">{inq.buyer?.email}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className={`status-dot ${inq.status === 'pending' ? 'bg-orange-400' : 'bg-olive'}`} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-stone/60">{inq.status || 'Pending'}</span>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`status-dot w-2 h-2 rounded-full ${inq.status === 'pending' ? 'bg-orange-400' : 'bg-olive'}`} />
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-stone/60">{inq.status || 'Pending'}</span>
+                            </div>
+                            <span className="text-[9px] font-medium text-stone/40">{new Date(inq.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                         <div className="bg-sand/10 rounded-lg p-3">
@@ -526,66 +639,73 @@ export default function SellerDashboard() {
             </div>
           </div>
 
-          <div className="space-y-16">
+          <div className="space-y-12">
             {/* Company Card - Premium UI */}
-            <div id="settings" className="space-y-10">
-              <div className="pb-4 border-b border-sand">
-                 <h3 className="text-xs font-bold text-coffee uppercase tracking-[0.3em]">Corporate Profile</h3>
-              </div>
-              <div className="flex flex-col items-center text-center space-y-8">
-                <div className="w-24 h-24 rounded-2xl bg-coffee flex items-center justify-center text-cream text-4xl font-display font-medium overflow-hidden shadow-2xl shadow-coffee/10">
-                  {company.logo_url ? <img src={company.logo_url} className="w-full h-full object-cover" /> : company.name.charAt(0)}
+            <div id="settings" className="bg-white border border-sand rounded-2xl overflow-hidden shadow-sm">
+              <div className="h-24 bg-sand/30 w-full relative">
+                <div className="absolute -bottom-10 left-6 w-20 h-20 bg-white p-1.5 rounded-2xl shadow-sm border border-sand">
+                  <div className="w-full h-full rounded-xl bg-coffee flex items-center justify-center text-cream text-2xl font-display font-medium overflow-hidden">
+                    {company.logo_url ? <img src={company.logo_url} className="w-full h-full object-cover" /> : company.name.charAt(0)}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-display font-medium text-coffee flex items-center justify-center gap-2">
-                    {company.name} {company.verified && <ShieldCheck size={18} className="text-olive" strokeWidth={1.5} />}
+              </div>
+              <div className="pt-14 pb-8 px-6">
+                <div className="space-y-1 mb-8">
+                  <h3 className="text-xl font-display font-semibold text-coffee flex items-center gap-2">
+                    {company.name} {company.verified && <ShieldCheck size={16} className="text-olive" strokeWidth={2} />}
                   </h3>
-                  <p className="text-[11px] text-stone/50 font-bold uppercase tracking-[0.3em]">{company.industry || 'Verified Node'}</p>
+                  <p className="text-[11px] text-stone/50 font-bold uppercase tracking-[0.2em]">{company.industry || 'Verified Node'}</p>
                 </div>
                 
-                <div className="grid grid-cols-2 w-full gap-8 py-8 border-y border-sand">
-                  <div>
-                    <p className="text-2xl font-display font-semibold text-coffee">{products.length}</p>
-                    <p className="text-[10px] font-bold uppercase text-stone/30 tracking-widest mt-1">Active Nodes</p>
-                  </div>
-                  <div className="border-l border-sand">
-                    <p className="text-2xl font-display font-semibold text-coffee">{inquiries.filter(i => i.status === 'pending').length}</p>
-                    <p className="text-[10px] font-bold uppercase text-stone/30 tracking-widest mt-1">Pending Deals</p>
-                  </div>
+                <div className="grid grid-cols-2 gap-4 mb-8">
+                   <div className="bg-sand/10 rounded-xl p-4 border border-sand/50">
+                     <p className="text-xl font-display font-semibold text-coffee">{products.length}</p>
+                     <p className="text-[9px] font-bold text-stone/40 uppercase tracking-[0.2em] mt-1">Active Nodes</p>
+                   </div>
+                   <div className="bg-sand/10 rounded-xl p-4 border border-sand/50">
+                     <p className="text-xl font-display font-semibold text-coffee">{inquiries.filter(i => i.status === 'pending').length}</p>
+                     <p className="text-[9px] font-bold text-stone/40 uppercase tracking-[0.2em] mt-1">Pending Deals</p>
+                   </div>
                 </div>
 
-                <Link to="#" className="btn-outline w-full py-4 text-xs font-bold uppercase tracking-[0.3em] bg-sand/30 hover:bg-sand/40 border-none flex items-center justify-center">
-                  Profile Management
+                <Link to="#" className="btn-outline w-full py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] bg-white hover:bg-stone/5 flex items-center justify-center">
+                   Profile Management
                 </Link>
               </div>
             </div>
 
             {/* Seller Insights */}
-            <div className="space-y-8">
-              <h4 className="text-xs font-bold uppercase tracking-[0.3em] text-coffee pb-4 border-b border-sand">
-                Node Activity
-              </h4>
-              <div className="space-y-8">
-                {inquiries.slice(0, 3).map((inq, i) => (
+            <div className="bg-white border border-sand rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center justify-between pb-4 border-b border-sand mb-6">
+                 <h4 className="text-[11px] font-bold uppercase tracking-[0.2em] text-coffee">
+                   Node Activity
+                 </h4>
+              </div>
+              <div className="space-y-6">
+                {inquiries.slice(0, 4).map((inq, i) => (
                   <div key={`activity-${inq.id}`} className="flex gap-4">
-                    <div className={`status-dot mt-1 ${inq.status === 'pending' ? 'bg-orange-400' : 'bg-olive'}`} />
-                    <div className="space-y-1">
-                      <p className="text-[13px] leading-relaxed text-coffee font-medium">
-                        {inq.status === 'pending' ? 'New deal request initiated by' : 'Transaction resolved with'} {inq.profiles?.full_name || 'an entity'} for {inq.products?.name}.
+                    <div className="w-8 h-8 rounded-full bg-sand/20 border border-sand flex items-center justify-center shrink-0 text-stone">
+                      {inq.status === 'pending' ? <MessageSquare size={12} /> : <CheckCircle2 size={12} />}
+                    </div>
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[12px] leading-relaxed text-coffee/80">
+                        {inq.status === 'pending' ? 'New Request received from' : 'Transaction resolved with'} <span className="font-semibold text-coffee">{inq.buyer?.full_name || 'an entity'}</span> for <span className="font-medium text-coffee italic">{inq.products?.name}</span>.
                       </p>
-                      <p className="text-[11px] text-stone/40 uppercase font-black tracking-widest">
+                      <p className="text-[9px] text-stone/40 font-bold uppercase tracking-widest">
                         {new Date(inq.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                 ))}
                 {inquiries.length === 0 && (
-                  <p className="text-[13px] text-stone/60">No recent activity on your trade node yet.</p>
+                  <p className="text-[12px] text-stone/60">No recent activity on your trade node yet.</p>
                 )}
               </div>
-              <button className="btn-outline w-full py-4 text-xs uppercase tracking-[0.3em] flex items-center justify-center">
-                Full Metrics
-              </button>
+              {inquiries.length > 0 && (
+                <button className="btn-outline border-none bg-sand/10 w-full mt-6 py-3.5 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center justify-center hover:bg-sand/20">
+                  Full Metrics
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -700,15 +820,33 @@ export default function SellerDashboard() {
                     onChange={e => setNewProduct({...newProduct, price: e.target.value})}
                   />
                 </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Unit</label>
+                  <select 
+                    required
+                    className="input-field w-full px-4 py-3 text-sm bg-white"
+                    value={newProduct.unit}
+                    onChange={e => setNewProduct({...newProduct, unit: e.target.value})}
+                  >
+                    <option value="" disabled>Select Unit</option>
+                    <option value="KG">Kilogram (KG)</option>
+                    <option value="Litre">Litre (L)</option>
+                    <option value="Piece">Piece (Pcs)</option>
+                    <option value="Ton">Ton (T)</option>
+                    <option value="Box">Box</option>
+                  </select>
+                </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Product Image URL</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-stone/60 mb-2">Product Image</label>
                 <input 
-                  type="url" 
-                  placeholder="https://example.com/image.jpg"
-                  className="input-field w-full px-4 py-3 text-sm"
-                  value={newProduct.image_url}
-                  onChange={e => setNewProduct({...newProduct, image_url: e.target.value})}
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) setImageFile(file);
+                  }}
+                  className="w-full text-sm text-stone file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-bold file:uppercase file:tracking-[0.2em] file:bg-sand/30 file:text-coffee hover:file:bg-sand/50 transition-colors cursor-pointer"
                 />
               </div>
               <button 
