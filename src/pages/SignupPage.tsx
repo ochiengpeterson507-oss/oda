@@ -143,6 +143,13 @@ export default function SignupPage() {
       subtitle="Register your business to access the ODA trade infrastructure."
     >
       <form onSubmit={handleSignup} className="space-y-10">
+        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-start gap-3 text-orange-700 text-[11px] font-medium leading-relaxed">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-bold uppercase tracking-widest mb-1">Service Notice</p>
+            <p>Email signups are currently disabled. The signup page is in maintenance. Once resolved, you will be notified.</p>
+          </div>
+        </div>
         {error && (
           <div className="p-4 bg-clay/5 border border-clay/20 rounded-xl flex items-center gap-3 text-clay text-[11px] font-medium">
             <AlertCircle size={14} />

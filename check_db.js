@@ -2,14 +2,20 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-async function checkProducts() {
-  const { data: products } = await supabase.from('products').select('id, name, price_range').limit(1);
-  console.log("Product price_range:", products?.[0]?.price_range);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.log("Supabase credentials missing");
+  process.exit(1);
 }
 
-checkProducts();
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+async function check() {
+  const { data, error } = await supabase.from('products').select('id, name, active').limit(5);
+  if (error) console.error(error);
+  else console.log(data);
+}
+
+check();

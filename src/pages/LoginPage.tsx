@@ -75,6 +75,13 @@ export default function LoginPage() {
       subtitle="Authorized personnel only. Securely connect to the ODA industrial trade network."
     >
       <form onSubmit={handleLogin} className="space-y-10 group-hooks">
+        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl flex items-start gap-3 text-orange-700 text-[11px] font-medium leading-relaxed">
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="font-bold uppercase tracking-widest mb-1">Service Notice</p>
+            <p>Email signups are currently disabled. The login page is undergoing maintenance. Regular service will be restored shortly.</p>
+          </div>
+        </div>
         {error && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}

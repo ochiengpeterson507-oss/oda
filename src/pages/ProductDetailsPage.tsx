@@ -59,33 +59,64 @@ export default function ProductDetailsPage() {
   }, [id]);
 
   const fetchProductDetails = async () => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        *, 
-        companies:company_id (
-          id, 
-          name, 
-          industry, 
-          verified, 
-          logo_url, 
-          owner_id,
-          profiles:owner_id (id, full_name, email)
-        ), 
-        categories:category_id (id, name)
-      `)
-      .eq('id', id)
-      .single();
     
-    if (error) {
-      console.error("Error fetching product details:", error);
-    }
-    
-    if (data) {
+    try {
+      // First try: Full detailed fetch with all joins
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *, 
+          companies:company_id (
+            id, 
+            name, 
+            industry, 
+            verified, 
+            logo_url, 
+            owner_id,
+            profiles:owner_id (id, full_name, email)
+          ), 
+          categories:category_id (id, name)
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (data) {
         setProduct(data);
+        setLoading(false);
+        return;
+      }
+
+      if (error) {
+        console.warn("Detailed fetch failed, trying basic fetch:", error);
+      }
+
+      // Second try: Basic fetch if relations failed (e.g., RLS issues with profiles)
+      const { data: basicData, error: basicError } = await supabase
+        .from('products')
+        .select(`
+          *,
+          companies:company_id (id, name, verified, logo_url, industry, owner_id),
+          categories:category_id (id, name)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (basicData) {
+        console.log("Basic product data loaded successfully");
+        setProduct(basicData);
+      } else if (basicError) {
+        console.error("Basic fetch also failed:", basicError);
+      }
+    } catch (err) {
+      console.error("Unexpected error in fetchProductDetails:", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSendInquiry = async (e: React.FormEvent) => {
@@ -207,7 +238,7 @@ export default function ProductDetailsPage() {
         <div className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-stone/40 mb-10 overflow-x-auto whitespace-nowrap pb-2 md:pb-0">
           <Link to="/marketplace" className="hover:text-olive transition-colors shrink-0">Marketplace</Link>
           <ChevronRight size={10} className="shrink-0" />
-          <span className="hover:text-olive cursor-pointer shrink-0">{product.categories?.name}</span>
+          <span className="hover:text-olive cursor-pointer shrink-0">{product.categories?.name || 'Uncategorized'}</span>
           <ChevronRight size={10} className="shrink-0" />
           <span className="text-coffee/60 truncate shrink-0 max-w-[150px] md:max-w-none">{product.name}</span>
         </div>
@@ -285,7 +316,11 @@ export default function ProductDetailsPage() {
           <div className="lg:col-span-5 space-y-12 md:space-y-16">
             <div className="space-y-8">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-3 py-1 bg-white/50 border border-sand text-coffee text-[10px] font-bold uppercase tracking-widest rounded-full">{product.categories?.name}</span>
+                {product.categories?.name && (
+                  <span className="px-3 py-1 bg-white/50 border border-sand text-coffee text-[10px] font-bold uppercase tracking-widest rounded-full">
+                    {product.categories.name}
+                  </span>
+                )}
                 <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-coffee/40 border border-sand px-3 py-1 rounded-full">Global Active</span>
               </div>
               
@@ -327,11 +362,11 @@ export default function ProductDetailsPage() {
             <div className="pt-12 border-t border-sand/50 flex items-center justify-between group">
               <div className="flex items-center gap-6">
                 <div className="w-14 h-14 rounded-xl bg-coffee flex items-center justify-center text-xl font-display font-medium text-cream overflow-hidden">
-                  {product.companies?.logo_url ? <img src={product.companies.logo_url} className="w-full h-full object-cover" /> : product.companies?.name?.charAt(0)}
+                  {product.companies?.logo_url ? <img src={product.companies.logo_url} className="w-full h-full object-cover" /> : product.companies?.name?.charAt(0) || '?'}
                 </div>
                 <div className="space-y-1">
                   <h4 className="text-lg font-display font-medium text-coffee flex items-center gap-2">
-                    {product.companies?.name} {product.companies?.verified && <ShieldCheck size={16} className="text-olive" strokeWidth={1.5} />}
+                    {product.companies?.name || 'Verified Vendor'} {product.companies?.verified && <ShieldCheck size={16} className="text-olive" strokeWidth={1.5} />}
                   </h4>
                   <p className="text-[10px] text-stone/40 font-bold uppercase tracking-widest">{product.companies?.industry || 'Industrial Hub'}</p>
                 </div>
