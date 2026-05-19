@@ -125,10 +125,16 @@ export default function ProductDetailsPage() {
     
     setInquiryLoading(true);
     setInquiryError(null);
+    const row = Array.isArray(product.companies) ? product.companies[0] : product.companies;
+    const sellerId = row?.owner_id;
+    const sellerProfile = row?.profiles;
+    const sellerProfileData = Array.isArray(sellerProfile) ? sellerProfile[0] : sellerProfile;
+    const sellerEmail = sellerProfileData?.email;
+
     const { error } = await supabase.from('inquiries').insert({
       buyer_id: user.id,
       product_id: product.id,
-      seller_id: product.companies?.owner_id,
+      seller_id: sellerId,
       message: inquiryMessage,
       status: 'pending',
       subject: `Quotation Request for ${product.name}`
@@ -178,7 +184,6 @@ export default function ProductDetailsPage() {
         }
 
         // Send email to seller
-        const sellerEmail = product.companies?.profiles?.email;
         if (sellerEmail) {
           try {
             const sellerRes = await fetch('/api/send-email', {
@@ -190,7 +195,7 @@ export default function ProductDetailsPage() {
                 html: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2>New Inquiry</h2>
-                    <p>Hello ${product.companies?.profiles?.full_name || 'Seller'},</p>
+                    <p>Hello ${sellerProfileData?.full_name || 'Seller'},</p>
                     <p>You have received a new inquiry for your product <strong>${product.name}</strong> from <strong>${user.user_metadata?.full_name || 'a buyer'}</strong>.</p>
                     <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                       <p><strong>Buyer's Message:</strong></p>

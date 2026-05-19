@@ -431,13 +431,16 @@ export default function SellerDashboard() {
                  <TrendingUp size={18} strokeWidth={2} />
               </div>
             </div>
-            <div className="relative z-10 mt-2">
-               <p className="text-4xl font-display font-medium text-coffee tracking-tight">
-                 <span className="text-lg text-stone/40 font-semibold align-top mr-1">KES</span>
-                 {inquiries.filter(i => i.status === 'resolved').reduce((acc, inq) => acc + (parseFloat(inq.products?.price_range) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-               </p>
-               <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Revenue YTD</p>
-            </div>
+                <div className="relative z-10 mt-2">
+                   <p className="text-4xl font-display font-medium text-coffee tracking-tight">
+                     <span className="text-lg text-stone/40 font-semibold align-top mr-1">KES</span>
+                     {inquiries.filter(i => i.status === 'resolved').reduce((acc, inq) => {
+                       const prod = Array.isArray(inq.products) ? inq.products[0] : inq.products;
+                       return acc + (parseFloat(prod?.price_range) || 0);
+                     }, 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                   </p>
+                   <p className="text-[10px] font-bold text-stone/50 uppercase tracking-[0.2em] mt-1">Revenue YTD</p>
+                </div>
           </div>
         </div>
       )}
@@ -560,7 +563,12 @@ export default function SellerDashboard() {
                             </td>
                             <td className="py-4 px-6 max-w-[200px]">
                                <div className="flex flex-col gap-1">
-                                 <span className="text-[12px] font-semibold text-coffee truncate">{inq.products?.name}</span>
+                                 <span className="text-[12px] font-semibold text-coffee truncate">
+                                   {(() => {
+                                     const prod = Array.isArray(inq.products) ? inq.products[0] : inq.products;
+                                     return prod?.name || 'Unknown Product';
+                                   })()}
+                                 </span>
                                  <span className="font-mono text-[10px] uppercase text-stone/40">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
                                </div>
                             </td>
@@ -622,7 +630,12 @@ export default function SellerDashboard() {
                           </div>
                         </div>
                         <div className="bg-sand/10 rounded-lg p-3">
-                          <p className="text-[11px] font-bold text-coffee uppercase tracking-wider mb-1 line-clamp-1">{inq.products?.name}</p>
+                          <p className="text-[11px] font-bold text-coffee uppercase tracking-wider mb-1 line-clamp-1">
+                            {(() => {
+                              const prod = Array.isArray(inq.products) ? inq.products[0] : inq.products;
+                              return prod?.name || 'Unknown Product';
+                            })()}
+                          </p>
                           <p className="text-[10px] text-stone/60 truncate">{inq.message || 'No additional notes provided.'}</p>
                         </div>
                         <div className="flex justify-between items-center pt-2">
@@ -699,7 +712,15 @@ export default function SellerDashboard() {
                     </div>
                     <div className="space-y-1.5 pt-1">
                       <p className="text-[12px] leading-relaxed text-coffee/80">
-                        {inq.status === 'pending' ? 'New Request received from' : 'Transaction resolved with'} <span className="font-semibold text-coffee">{inq.buyer?.full_name || 'an entity'}</span> for <span className="font-medium text-coffee italic">{inq.products?.name}</span>.
+                        {(() => {
+                          const prod = Array.isArray(inq.products) ? inq.products[0] : inq.products;
+                          const productName = prod?.name || 'a product';
+                          return (
+                            <>
+                              {inq.status === 'pending' ? 'New Request received from' : 'Transaction resolved with'} <span className="font-semibold text-coffee">{inq.buyer?.full_name || 'an entity'}</span> for <span className="font-medium text-coffee italic">{productName}</span>.
+                            </>
+                          );
+                        })()}
                       </p>
                       <p className="text-[9px] text-stone/40 font-bold uppercase tracking-widest">
                         {new Date(inq.created_at).toLocaleDateString()}
