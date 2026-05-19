@@ -107,8 +107,8 @@ export default function SellerDashboard() {
     
     if (compData) {
       setCompany(compData);
-      // Products and inquiries will be fetched by the individual functions
-      // which is cleaner than Promise.all if we want to handle them independently
+      fetchProducts(compData.id);
+      fetchInquiries();
     }
   };
 

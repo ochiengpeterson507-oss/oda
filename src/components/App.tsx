@@ -16,6 +16,7 @@ import SellerDashboard from '../pages/SellerDashboard';
 import BuyerDashboard from '../pages/BuyerDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import TermsPage from '../pages/TermsPage';
+import DiagnosticPage from '../pages/DiagnosticPage';
 import SuppliersPage from '../pages/SuppliersPage';
 import SolutionsPage from '../pages/SolutionsPage';
 import AboutPage from '../pages/AboutPage';
@@ -45,6 +46,11 @@ export default function App() {
           <Route path="/suppliers" element={<SuppliersPage />} />
           <Route path="/solutions" element={<SolutionsPage />} />
           <Route path="/about" element={<AboutPage />} />
+          <Route path="/diagnostics" element={
+            <ProtectedRoute>
+              <DiagnosticPage />
+            </ProtectedRoute>
+          } />
 
           {/* Protected Dashboard Routes */}
           <Route path="/dashboard" element={
