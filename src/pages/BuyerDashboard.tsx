@@ -43,7 +43,7 @@ export default function BuyerDashboard() {
       setLoading(false);
       return;
     }
-    fetchBuyerData();
+    fetchBuyerData(true);
 
     const newChannel = supabase
       .channel(`buyer-dashboard-${user.id}`)
@@ -52,7 +52,7 @@ export default function BuyerDashboard() {
         { event: '*', schema: 'public', table: 'inquiries', filter: `buyer_id=eq.${user.id}` },
         (payload) => {
           console.log('Buyer inquiry update:', payload);
-          fetchBuyerData(); 
+          fetchBuyerData(false); 
         }
       )
       .subscribe();
@@ -62,13 +62,19 @@ export default function BuyerDashboard() {
     };
   }, [user, authLoading]);
 
-  const fetchBuyerData = async () => {
+  const fetchBuyerData = async (isInitial = false) => {
     try {
-      setLoading(true);
-      // Fetch inquiries for the buyer
+      if (isInitial) setLoading(true);
+      // Fetch inquiries for the buyer with minimal necessary fields
       const { data: inqData } = await supabase
         .from('inquiries')
-        .select('*, products(name, company_id)')
+        .select(`
+          id, 
+          created_at, 
+          status, 
+          product_id, 
+          products:product_id (id, name, company_id)
+        `)
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
 
@@ -77,7 +83,10 @@ export default function BuyerDashboard() {
         
         const open = inqData.filter(i => i.status === 'pending').length;
         const uniqueProducts = new Set(inqData.map(i => i.product_id)).size;
-        const uniqueCompanies = new Set(inqData.map(i => i.products?.company_id)).size;
+        const uniqueCompanies = new Set(inqData.map(i => {
+          const prod = i.products as any;
+          return Array.isArray(prod) ? prod[0]?.company_id : prod?.company_id;
+        })).size;
         
         setStats({
           activity: inqData.length > 0 ? '+12.5%' : '0%', // Mocked trend

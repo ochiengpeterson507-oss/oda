@@ -21,7 +21,7 @@ export default function SuppliersPage() {
               <span className="status-dot bg-olive" />
               <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-coffee/40">Network Status: Operational</span>
             </div>
-            <h1 className="text-5xl md:text-7xl font-display font-semibold text-coffee leading-[0.95] tracking-tighter">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-semibold text-coffee leading-[0.95] tracking-tighter">
               Verified <br />
               <span className="text-olive">Production</span> <br />
               Nodes.
@@ -73,7 +73,7 @@ export default function SuppliersPage() {
         <div className="bg-coffee p-12 md:p-20 rounded-2xl text-white relative overflow-hidden">
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <h2 className="text-4xl md:text-5xl font-display font-medium mb-8 leading-tight">Scale your <br />industrial output.</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-medium mb-8 leading-tight">Scale your <br />industrial output.</h2>
               <p className="text-white/60 text-lg mb-12 max-w-md font-medium">Connect your facility to our verified trade ecosystem and access professional procurement teams globally.</p>
               <Link to="/signup" className="btn-secondary inline-flex items-center gap-3 px-8 py-4 uppercase tracking-widest border-none">
                 Register as Supplier <ChevronRight size={16} />

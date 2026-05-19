@@ -38,13 +38,17 @@ export default function ProductDetailsPage() {
   useEffect(() => {
     fetchProductDetails();
 
+    // Subscribe to changes for this specific product ID once
+    if (!id) return;
+    
     const newChannel = supabase
-      .channel('product-details-changes')
+      .channel(`product-details-${id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'products', filter: `id=eq.${id}` },
+        { event: 'UPDATE', schema: 'public', table: 'products', filter: `id=eq.${id}` },
         (payload) => {
-          fetchProductDetails(); 
+          console.log('Product updated in realtime:', payload);
+          setProduct((prev: any) => ({ ...prev, ...payload.new }));
         }
       )
       .subscribe();
@@ -58,7 +62,19 @@ export default function ProductDetailsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from('products')
-      .select('*, companies(*, profiles(*)), categories(*)')
+      .select(`
+        *, 
+        companies:company_id (
+          id, 
+          name, 
+          industry, 
+          verified, 
+          logo_url, 
+          owner_id,
+          profiles:owner_id (id, full_name, email)
+        ), 
+        categories:category_id (id, name)
+      `)
       .eq('id', id)
       .single();
     
@@ -273,7 +289,7 @@ export default function ProductDetailsPage() {
                 <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-coffee/40 border border-sand px-3 py-1 rounded-full">Global Active</span>
               </div>
               
-              <h1 className="text-5xl md:text-7xl font-display font-medium text-coffee leading-[1.05] tracking-tighter">{product.name}</h1>
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-medium text-coffee leading-[1.05] tracking-tighter">{product.name}</h1>
               
               <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-6">
@@ -283,7 +299,7 @@ export default function ProductDetailsPage() {
                   </div>
                   <span className="text-[11px] font-bold text-coffee uppercase tracking-widest">4.8 Market Rating</span>
                 </div>
-                <p className="text-[28px] md:text-[32px] font-display font-medium text-olive tracking-tight">KSh {parseFloat(product.price_range || 0).toLocaleString()} <span className="text-xs font-bold text-stone/40 uppercase tracking-[0.2em] ml-2">per unit</span></p>
+                <p className="text-2xl sm:text-[28px] md:text-[32px] font-display font-medium text-olive tracking-tight">KSh {parseFloat(product.price_range || 0).toLocaleString()} <span className="text-xs font-bold text-stone/40 uppercase tracking-[0.2em] ml-2">per unit</span></p>
               </div>
             </div>
 

@@ -41,6 +41,7 @@ CREATE TABLE public.products (
   description TEXT,
   price_range TEXT,
   price NUMERIC,
+  unit TEXT DEFAULT 'Unit',
   min_order_quantity TEXT,
   images TEXT[] DEFAULT '{}',
   featured BOOLEAN DEFAULT FALSE,
@@ -136,6 +137,8 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Categories are viewable by everyone" ON public.categories FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create categories" ON public.categories FOR INSERT TO authenticated WITH CHECK (true);
 ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;

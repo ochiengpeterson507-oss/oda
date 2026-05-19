@@ -18,7 +18,7 @@ export default function AboutPage() {
           >
             <div className="space-y-6">
                <span className="text-[11px] font-bold text-coffee/40 uppercase tracking-[0.4em]">Our Philosophy</span>
-               <h1 className="text-6xl md:text-8xl font-display font-medium text-coffee leading-[0.95] tracking-tighter">
+               <h1 className="text-4xl sm:text-6xl md:text-8xl font-display font-medium text-coffee leading-[0.95] tracking-tighter">
                  Redefining <br />
                  Corporate <br />
                  <span className="text-olive">Connection.</span>
@@ -80,7 +80,7 @@ export default function AboutPage() {
         </div>
 
         <div className="text-center py-32 bg-sand/30 border border-sand rounded-[3rem] space-y-12">
-          <h2 className="text-5xl md:text-7xl font-display font-medium text-coffee max-w-3xl mx-auto leading-[0.95] tracking-tighter px-6">Ready to join the next generation of verified trade?</h2>
+          <h2 className="text-3xl sm:text-5xl md:text-7xl font-display font-medium text-coffee max-w-3xl mx-auto leading-[0.95] tracking-tighter px-6">Ready to join the next generation of verified trade?</h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <button className="btn-primary px-12 py-5 text-xs font-bold uppercase tracking-[0.3em]">
               Establish Your Profile

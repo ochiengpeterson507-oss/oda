@@ -25,7 +25,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.2 }}
-            className="text-8xl md:text-[10rem] font-display font-bold text-white tracking-tighter leading-none drop-shadow-2xl mb-4"
+            className="text-6xl md:text-8xl lg:text-[10rem] font-display font-bold text-white tracking-tighter leading-none drop-shadow-2xl mb-4"
           >
             ODA
           </motion.h1>

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
+import compression from "compression";
 import { createServer as createViteServer } from "vite";
 import { Resend } from "resend";
 
@@ -8,7 +9,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Use compression to reduce payload sizes
+  app.use(compression());
   app.use(express.json());
+
+  // Set performance-related headers
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (process.env.NODE_ENV === "production" && req.path.match(/\.(js|css|webp|png|jpg|jpeg|svg|woff2)$/)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    }
+    next();
+  });
 
   let resendClient: Resend | null = null;
   const getResend = () => {
@@ -64,12 +76,15 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    const distPath = path.resolve(process.cwd(), "dist");
+    app.use(express.static(distPath, { index: false }));
     
-    // Express 4 uses '*', but just in case we are in v4
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"), (err) => {
+        if (err) {
+          res.status(500).send("Error loading application: Dist folder or index.html might be missing. Please run build.");
+        }
+      });
     });
   }
 

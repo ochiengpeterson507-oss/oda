@@ -17,7 +17,7 @@ export default function SolutionsPage() {
           className="text-center space-y-8 mb-32"
         >
           <span className="text-[11px] font-bold text-coffee/40 uppercase tracking-[0.4em]">Future of Commerce</span>
-          <h1 className="text-6xl md:text-8xl font-display font-medium text-coffee tracking-tighter leading-[0.95]">Tools for Enterprise.</h1>
+          <h1 className="text-4xl sm:text-6xl md:text-8xl font-display font-medium text-coffee tracking-tighter leading-[0.95]">Tools for Enterprise.</h1>
           <p className="text-stone text-[19px] font-medium max-w-2xl mx-auto leading-relaxed">
             From smart procurement to verified communications, we provide the infrastructure businesses need to thrive in a global economy.
           </p>
@@ -50,7 +50,7 @@ export default function SolutionsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
           <div className="order-2 lg:order-1">
             <div className="space-y-12">
-              <h2 className="text-5xl md:text-6xl font-display font-medium text-coffee leading-[0.95] tracking-tighter">Integrated Trade <br />Infrastructure.</h2>
+              <h2 className="text-3xl sm:text-4xl md:text-6xl font-display font-medium text-coffee leading-[0.95] tracking-tighter">Integrated Trade <br />Infrastructure.</h2>
               <div className="space-y-10">
                 {[
                   { title: "Unified Communication", desc: "Direct, encrypted messaging pipelines between corporate buyers and suppliers." },

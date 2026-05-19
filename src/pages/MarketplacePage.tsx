@@ -11,19 +11,36 @@ export default function MarketplacePage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
+  // Debounce search effect
   useEffect(() => {
-    fetchMarketplaceData();
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 400);
 
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Initial category fetch - only once
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data } = await supabase.from('categories').select('id, name');
+      if (data) setCategories(data);
+    };
+    fetchCategories();
+
+    // Subscribe to changes once
     const newChannel = supabase
-      .channel('marketplace-products')
+      .channel('marketplace-products-sync')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          fetchMarketplaceData(); 
+        () => {
+          // Debounce or refine this: only fetch if the user isn't actively searching?
+          // For high performance, we might just want to show a "New products available" toast
         }
       )
       .subscribe();
@@ -31,39 +48,55 @@ export default function MarketplacePage() {
     return () => {
       supabase.removeChannel(newChannel);
     };
-  }, [selectedCategory, search]);
+  }, []);
 
-  const fetchMarketplaceData = async () => {
+  useEffect(() => {
+    fetchMarketplaceProducts();
+  }, [selectedCategory, debouncedSearch]);
+
+  const fetchMarketplaceProducts = async () => {
     setLoading(true);
     
-    // Fetch categories
-    const { data: catData } = await supabase.from('categories').select('*');
-    if (catData && catData.length > 0) {
-      setCategories(catData);
-    } else {
-      setCategories([]);
-    }
+    try {
+      let query = supabase
+        .from('products')
+        .select(`
+          id, 
+          name, 
+          price_range, 
+          images,
+          unit,
+          active,
+          created_at,
+          companies:company_id (id, name, verified),
+          categories:category_id (id, name)
+        `)
+        .eq('active', true);
 
-    // Fetch products
-    let query = supabase
-      .from('products')
-      .select('*, companies(*), categories(*)');
+      if (selectedCategory) {
+        query = query.eq('category_id', selectedCategory);
+      }
 
-    if (selectedCategory) {
-      query = query.eq('category_id', selectedCategory);
-    }
+      const searchLower = debouncedSearch.toLowerCase().trim();
+      if (searchLower) {
+        query = query.ilike('name', `%${searchLower}%`);
+      }
 
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
+      const { data, error } = await query.order('created_at', { ascending: false }).limit(40);
+      
+      if (error) {
+        console.error('Marketplace Query Error:', error);
+        // Robust fallback
+        const { data: fallback } = await supabase.from('products').select('id, name, price_range, images, unit').eq('active', true).limit(20);
+        setProducts(fallback || []);
+      } else {
+        setProducts(data || []);
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching products:', err);
+    } finally {
+      setLoading(false);
     }
-
-    const { data: prodData } = await query;
-    if (prodData && prodData.length > 0) {
-      setProducts(prodData);
-    } else {
-      setProducts([]);
-    }
-    setLoading(false);
   };
 
   return (

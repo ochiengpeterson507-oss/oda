@@ -52,24 +52,35 @@ export default function SellerDashboard() {
       setLoading(false);
       return;
     }
-    fetchSellerData();
-    fetchCategories();
+    
+    // Initial fetch
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchCompany(), fetchCategories()]);
+      setLoading(false);
+    };
+    init();
+  }, [user, authLoading]);
+
+  // Realtime subscriptions - separate to avoid loops
+  useEffect(() => {
+    if (!user || !company?.id) return;
 
     const newChannel = supabase
       .channel(`seller-db-changes-${user.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'inquiries' },
+        { event: '*', schema: 'public', table: 'inquiries', filter: `seller_id=eq.${user.id}` },
         (payload) => {
           console.log('Realtime inquiry update:', payload);
-          fetchSellerData(true); 
+          fetchInquiries(company.id); 
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        (payload) => {
-          fetchSellerData(true); 
+        { event: '*', schema: 'public', table: 'products', filter: `company_id=eq.${company.id}` },
+        () => {
+          fetchProducts(company.id); 
         }
       )
       .subscribe();
@@ -79,55 +90,52 @@ export default function SellerDashboard() {
     return () => {
       if (newChannel) supabase.removeChannel(newChannel);
     };
-  }, [user, authLoading]);
+  }, [user, company?.id]);
 
   const fetchCategories = async () => {
-    const { data } = await supabase.from('categories').select('*');
-    if (data && data.length > 0) {
-      setCategories(data);
-    } else {
-      setCategories([]);
+    const { data } = await supabase.from('categories').select('id, name');
+    setCategories(data || []);
+  };
+
+  const fetchCompany = async () => {
+    const { data: compData } = await supabase
+      .from('companies')
+      .select('id, name, industry, verified, logo_url, owner_id')
+      .eq('owner_id', user!.id)
+      .single();
+    
+    if (compData) {
+      setCompany(compData);
+      // Products and inquiries will be fetched by the individual functions
+      // which is cleaner than Promise.all if we want to handle them independently
     }
   };
 
-  const fetchSellerData = async (isRealtimeUpdate = false) => {
-    try {
-      if (!isRealtimeUpdate) setLoading(true);
-      // Fetch company
-      const { data: compData, error: compError } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('owner_id', user!.id)
-        .single();
-      
-      if (compData) {
-        setCompany(compData);
-        
-        // Fetch products
-        const { data: prodData } = await supabase
-          .from('products')
-          .select('*, categories(name)')
-          .eq('company_id', compData.id);
-          
-        if (prodData) {
-          setProducts(prodData);
-        }
-        
-        const { data: inqData, error: inqError } = await supabase
-          .from('inquiries')
-          .select('*, buyer:profiles!buyer_id(full_name, email), products(name, price_range)')
-          .eq('seller_id', user!.id)
-          .order('created_at', { ascending: false });
-        
-        if (inqError) console.error("Error fetching inquiries:", inqError);
-        if (inqData) setInquiries(inqData);
-        else setInquiries([]);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      if (!isRealtimeUpdate) setLoading(false);
-    }
+  const fetchProducts = async (companyId: string) => {
+    if (!companyId) return;
+    const { data } = await supabase
+      .from('products')
+      .select('id, name, price_range, images, unit, created_at, category_id, categories(id, name)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+    if (data) setProducts(data);
+  };
+
+  const fetchInquiries = async (companyId?: string) => {
+    const { data } = await supabase
+      .from('inquiries')
+      .select(`
+        id, 
+        created_at, 
+        status, 
+        message, 
+        buyer:profiles!buyer_id(id, full_name, email), 
+        products(id, name, price_range)
+      `)
+      .eq('seller_id', user!.id)
+      .order('created_at', { ascending: false });
+    
+    if (data) setInquiries(data);
   };
 
   const handleOpenQuoteModal = (inquiry: any) => {
@@ -152,7 +160,7 @@ export default function SellerDashboard() {
       .eq('id', selectedInquiry.id);
 
     if (!error) {
-      await fetchSellerData(true);
+      await fetchInquiries(company?.id);
       setShowQuoteModal(false);
     } else {
       setErrorMsg('Error sending quote: ' + error.message);
@@ -168,7 +176,7 @@ export default function SellerDashboard() {
       .eq('id', inquiryId);
 
     if (!error) {
-      await fetchSellerData(true);
+      await fetchInquiries(company?.id);
     }
     setResolvingId(null);
   };
@@ -282,7 +290,6 @@ export default function SellerDashboard() {
       name: newProduct.name,
       description: newProduct.description,
       price_range: newProduct.price.toString(),
-      unit: newProduct.unit || 'Unit',
       category_id: finalCategoryId,
       images: [imageUrl || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=1200']
     });
@@ -295,7 +302,7 @@ export default function SellerDashboard() {
       setImageFile(null);
       setShowProductModal(false);
       setErrorMsg('');
-      fetchSellerData(true);
+      fetchProducts(company.id);
     }
     setSubmitting(false);
   };
@@ -317,7 +324,7 @@ export default function SellerDashboard() {
 
     const { error } = await supabase.from('products').delete().eq('id', productId);
     if (!error) {
-       fetchSellerData(true);
+       fetchProducts(company.id);
     } else {
        alert("Error deleting product: " + error.message);
     }

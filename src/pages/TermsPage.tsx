@@ -16,7 +16,7 @@ export default function TermsPage() {
           className="space-y-16"
         >
           <div className="text-center space-y-6">
-            <h1 className="text-5xl md:text-7xl font-display font-medium text-coffee tracking-tighter leading-[0.95]">Terms and Conditions</h1>
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-display font-medium text-coffee tracking-tighter leading-[0.95]">Terms and Conditions</h1>
             <p className="text-stone/40 font-bold uppercase tracking-[0.3em] text-[10px]">Effective as of May 15, 2026</p>
           </div>
 
