@@ -73,9 +73,13 @@ export default function BuyerDashboard() {
         .from('inquiries')
         .select(`
           id, 
+          buyer_id,
+          seller_id,
           created_at, 
           status, 
           product_id, 
+          message,
+          seller:profiles!seller_id(id, full_name, email),
           products:product_id (id, name, company_id)
         `)
         .eq('buyer_id', user!.id)
