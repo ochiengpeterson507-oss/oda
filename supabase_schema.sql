@@ -88,6 +88,7 @@ CREATE TABLE public.inquiries (
 -- Messages table (for real-time chat between buyer and seller)
 CREATE TABLE public.messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  inquiry_id UUID REFERENCES public.inquiries(id) ON DELETE CASCADE,
   sender_id UUID REFERENCES public.profiles(id),
   receiver_id UUID REFERENCES public.profiles(id),
   content TEXT NOT NULL,
@@ -185,6 +186,11 @@ CREATE POLICY "Sellers can update inquiries for their products" ON public.inquir
     WHERE p.id = inquiries.product_id AND c.owner_id = auth.uid()
   )
 );
+
+-- Messages: Users can see messages where they are sender or receiver
+CREATE POLICY "Users can view their own messages" ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Users can create messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+CREATE POLICY "Users can update their received messages" ON public.messages FOR UPDATE USING (auth.uid() = receiver_id);
 
 -- 3. Functions & Triggers
 

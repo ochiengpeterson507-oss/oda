@@ -6,6 +6,9 @@ import { AlertCircle, Database, Shield, User } from 'lucide-react';
 export default function DiagnosticPage() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [company, setCompany] = useState<any>(null);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +26,32 @@ export default function DiagnosticPage() {
           return;
         }
 
-        // 2. Fetch ALL inquiries this user has access to
+        // 2. Fetch Profile
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setProfile(profData);
+
+        // 3. Fetch Company
+        const { data: compData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('owner_id', session.user.id);
+        const activeCompany = compData?.[0] || null;
+        setCompany(activeCompany);
+
+        // 4. Fetch Products
+        if (activeCompany) {
+          const { data: prodData } = await supabase
+            .from('products')
+            .select('*')
+            .eq('company_id', activeCompany.id);
+          setProducts(prodData || []);
+        }
+
+        // 5. Fetch ALL inquiries this user has access to
         const { data, error: inqError } = await supabase
           .from('inquiries')
           .select(`
@@ -48,29 +76,52 @@ export default function DiagnosticPage() {
   return (
     <DashboardLayout title="System Diagnostics" subtitle="Raw Data Verification Portal">
       <div className="space-y-8">
-        {/* User Info Card */}
-        <div className="bg-white border border-sand rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <User className="text-olive" size={20} />
-            <h3 className="font-display font-semibold text-coffee">Authentication State</h3>
+        {/* User & Node Health */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white border border-sand rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4 text-olive">
+              <User size={18} />
+              <h3 className="font-display font-semibold text-coffee">Identity</h3>
+            </div>
+            {profile ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-coffee">{profile.full_name}</p>
+                <p className="text-[10px] font-bold uppercase text-stone/40">Role: {profile.role}</p>
+                <code className="text-[9px] block bg-sand/20 p-1 truncate">{profile.id}</code>
+              </div>
+            ) : <p className="text-xs text-clay">No Profile Record Found</p>}
           </div>
-          {user ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone/40">User ID</p>
-                <code className="text-xs bg-sand/20 px-2 py-1 rounded">{user.id}</code>
+
+          <div className="bg-white border border-sand rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4 text-olive">
+              <Database size={18} />
+              <h3 className="font-display font-semibold text-coffee">Commercial Node</h3>
+            </div>
+            {company ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-coffee">{company.name}</p>
+                <p className="text-[10px] font-bold uppercase text-stone/40">ID: {company.id.slice(0,8)}</p>
+                <p className="text-[9px] font-medium text-stone/60">Owner ID: {company.owner_id.slice(0,8)}...</p>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-stone/40">Email</p>
-                <p className="text-sm font-medium text-coffee">{user.email}</p>
+            ) : <p className="text-xs text-stone/40">No Company Initialized</p>}
+          </div>
+
+          <div className="bg-white border border-sand rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4 text-olive">
+              <Shield size={18} />
+              <h3 className="font-display font-semibold text-coffee">Active Inventory</h3>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-coffee">{products.length} Products</p>
+              <div className="max-h-[60px] overflow-y-auto">
+                {products.map(p => (
+                   <div key={p.id} className="text-[9px] text-stone/60 border-b border-sand/30 py-1">
+                     {p.name.slice(0, 20)}... (ID: {p.id.slice(0,4)})
+                   </div>
+                ))}
               </div>
             </div>
-          ) : (
-            <div className="p-4 bg-clay/5 border border-clay/10 rounded-xl text-clay text-sm flex items-center gap-2">
-              <AlertCircle size={16} />
-              Not logged in.
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Inquiries Data */}

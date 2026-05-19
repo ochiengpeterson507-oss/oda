@@ -71,7 +71,7 @@ export default function SellerDashboard() {
       .channel(`seller-db-changes-${user.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'inquiries', filter: `seller_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'inquiries' },
         (payload) => {
           console.log('Realtime inquiry update:', payload);
           fetchInquiries(company.id); 
@@ -108,7 +108,7 @@ export default function SellerDashboard() {
     if (compData) {
       setCompany(compData);
       fetchProducts(compData.id);
-      fetchInquiries();
+      fetchInquiries(compData.id);
     }
   };
 
@@ -123,20 +123,35 @@ export default function SellerDashboard() {
   };
 
   const fetchInquiries = async (companyId?: string) => {
-    const { data } = await supabase
+    const compId = companyId || company?.id;
+    if (!compId) return; // Wait until company is loaded
+    const { data, error } = await supabase
       .from('inquiries')
       .select(`
         id, 
+        buyer_id,
+        seller_id,
         created_at, 
         status, 
         message, 
         buyer:profiles!buyer_id(id, full_name, email), 
-        products(id, name, price_range)
+        products(id, name, price_range, company_id)
       `)
-      .eq('seller_id', user!.id)
       .order('created_at', { ascending: false });
     
-    if (data) setInquiries(data);
+    if (error) {
+      console.error('Error fetching inquiries:', error);
+      return;
+    }
+    
+    if (data) {
+      // Filter to only inquiries for this seller's company
+      const receivedInquiries = data.filter(inq => {
+        const prod = Array.isArray(inq.products) ? inq.products[0] : inq.products;
+        return prod?.company_id === compId || inq.seller_id === user!.id;
+      });
+      setInquiries(receivedInquiries);
+    }
   };
 
   const handleOpenQuoteModal = (inquiry: any) => {
