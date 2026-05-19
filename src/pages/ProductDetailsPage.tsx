@@ -141,68 +141,82 @@ export default function ProductDetailsPage() {
       // Send email notification via our backend
       try {
         // Send email to buyer
-        const emailRes = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: user.email, // Sending confirmation to the buyer
-            subject: `Inquiry Sent: ${product.name}`,
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                <h2>Inquiry Confirmation</h2>
-                <p>Hello ${user.user_metadata?.full_name || 'Buyer'},</p>
-                <p>Your inquiry for <strong>${product.name}</strong> has been successfully sent to the seller.</p>
-                <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                  <p><strong>Your Message:</strong></p>
-                  <p style="white-space: pre-wrap;">${inquiryMessage}</p>
-                </div>
-                <p>The seller will review your request and get back to you soon.</p>
-                <br/>
-                <p>Best regards,<br/>B2B Node Team</p>
-              </div>
-            `
-          })
-        });
-        
-        const emailData = await emailRes.json();
-        if (!emailRes.ok) {
-          throw new Error(emailData.error || 'Failed to send buyer email');
-        }
-
-        // Send email to seller
-        const sellerEmail = product.companies?.profiles?.email;
-        if (sellerEmail) {
-          const sellerRes = await fetch('/api/send-email', {
+        let buyerEmailSent = false;
+        try {
+          const emailRes = await fetch('/api/send-email', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              to: sellerEmail,
-              subject: `New Inquiry Received: ${product.name}`,
+              to: user.email, 
+              subject: `Inquiry Sent: ${product.name}`,
               html: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-                  <h2>New Inquiry</h2>
-                  <p>Hello ${product.companies?.profiles?.full_name || 'Seller'},</p>
-                  <p>You have received a new inquiry for your product <strong>${product.name}</strong> from <strong>${user.user_metadata?.full_name || 'a buyer'}</strong>.</p>
+                  <h2>Inquiry Confirmation</h2>
+                  <p>Hello ${user.user_metadata?.full_name || 'Buyer'},</p>
+                  <p>Your inquiry for <strong>${product.name}</strong> has been successfully sent to the seller.</p>
                   <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Buyer's Message:</strong></p>
+                    <p><strong>Your Message:</strong></p>
                     <p style="white-space: pre-wrap;">${inquiryMessage}</p>
                   </div>
-                  <p>Please log in to your Seller Dashboard to view and respond to this inquiry.</p>
+                  <p>The seller will review your request and get back to you soon.</p>
                   <br/>
                   <p>Best regards,<br/>B2B Node Team</p>
                 </div>
               `
             })
           });
+          
+          if (emailRes.ok) {
+            buyerEmailSent = true;
+          } else {
+            // Log error but don't stop execution
+            const text = await emailRes.text();
+            console.error('Buyer email failed:', text);
+          }
+        } catch (err) {
+          console.error('Network error sending buyer email:', err);
+        }
 
-          if (!sellerRes.ok) {
-            console.error("Failed to send seller email.");
+        // Send email to seller
+        const sellerEmail = product.companies?.profiles?.email;
+        if (sellerEmail) {
+          try {
+            const sellerRes = await fetch('/api/send-email', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: sellerEmail,
+                subject: `New Inquiry Received: ${product.name}`,
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+                    <h2>New Inquiry</h2>
+                    <p>Hello ${product.companies?.profiles?.full_name || 'Seller'},</p>
+                    <p>You have received a new inquiry for your product <strong>${product.name}</strong> from <strong>${user.user_metadata?.full_name || 'a buyer'}</strong>.</p>
+                    <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                      <p><strong>Buyer's Message:</strong></p>
+                      <p style="white-space: pre-wrap;">${inquiryMessage}</p>
+                    </div>
+                    <p>Please log in to your Seller Dashboard to view and respond to this inquiry.</p>
+                    <br/>
+                    <p>Best regards,<br/>B2B Node Team</p>
+                  </div>
+                `
+              })
+            });
+
+            if (!sellerRes.ok) {
+              console.error("Failed to send seller email.");
+            }
+          } catch (err) {
+            console.error('Network error sending seller email:', err);
           }
         }
-        console.log("Emails sent successfully.");
+        
+        if (buyerEmailSent) {
+          console.log("Emails sent successfully.");
+        }
       } catch (emailErr: any) {
-        console.error("Failed to send notification email:", emailErr);
-        alert(`Inquiry saved, but failed to send email notification: ${emailErr.message}`);
+        console.error("Unexpected error in notification flow:", emailErr);
       }
     } else {
       console.error(error);
