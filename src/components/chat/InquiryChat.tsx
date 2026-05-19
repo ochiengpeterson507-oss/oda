@@ -17,11 +17,22 @@ export default function InquiryChat({ inquiry, onClose }: InquiryChatProps) {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const isSeller = user?.id === inquiry.seller_id;
-  const otherPartyId = isSeller ? inquiry.buyer_id : inquiry.seller_id;
-  const otherPartyName = isSeller 
-    ? inquiry.buyer?.full_name || 'Buyer'
-    : inquiry.seller?.full_name || 'Seller';
+  const isBuyer = (user?.id === inquiry.buyer_id);
+  
+  // Get seller_id safely, including for old inquiries missing the column data
+  let resolvedSellerId = inquiry.seller_id;
+  if (!resolvedSellerId) {
+    const prod = Array.isArray(inquiry.products) ? inquiry.products[0] : inquiry.products;
+    const comp = prod?.companies;
+    resolvedSellerId = Array.isArray(comp) ? comp[0]?.owner_id : comp?.owner_id;
+  }
+  
+  const otherPartyId = isBuyer ? resolvedSellerId : inquiry.buyer_id;
+  
+  // Try to determine the name safely
+  const otherPartyName = isBuyer 
+    ? (inquiry.seller?.full_name || 'Seller')
+    : (inquiry.buyer?.full_name || 'Buyer');
 
   useEffect(() => {
     fetchMessages();
@@ -86,6 +97,11 @@ export default function InquiryChat({ inquiry, onClose }: InquiryChatProps) {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !user || sending) return;
+    
+    if (!otherPartyId) {
+      console.error('Cannot send message: Missing receiver ID');
+      return;
+    }
 
     setSending(true);
     const { error } = await supabase

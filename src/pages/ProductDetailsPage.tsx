@@ -125,11 +125,37 @@ export default function ProductDetailsPage() {
     
     setInquiryLoading(true);
     setInquiryError(null);
+    let sellerId = null;
+    let sellerEmail = '';
+    let sellerFullName = 'Seller';
+    
+    // First try to extract from the product payload
     const row = Array.isArray(product.companies) ? product.companies[0] : product.companies;
-    const sellerId = row?.owner_id;
+    sellerId = row?.owner_id;
     const sellerProfile = row?.profiles;
     const sellerProfileData = Array.isArray(sellerProfile) ? sellerProfile[0] : sellerProfile;
-    const sellerEmail = sellerProfileData?.email;
+    
+    if (sellerProfileData) {
+      sellerEmail = sellerProfileData.email;
+      sellerFullName = sellerProfileData.full_name;
+    }
+    
+    // Fallback: fetch directly
+    if (!sellerId && product.company_id) {
+      const { data: cData } = await supabase.from('companies').select('owner_id, profiles(email, full_name)').eq('id', product.company_id).single();
+      sellerId = cData?.owner_id;
+      const cProf = Array.isArray(cData?.profiles) ? cData?.profiles[0] : cData?.profiles;
+      if (cProf) {
+        sellerEmail = cProf.email;
+        sellerFullName = cProf.full_name;
+      }
+    }
+
+    if (!sellerId) {
+      setInquiryError("System couldn't determine the vendor ID. Please contact support.");
+      setInquiryLoading(false);
+      return;
+    }
 
     const { error } = await supabase.from('inquiries').insert({
       buyer_id: user.id,
@@ -139,6 +165,13 @@ export default function ProductDetailsPage() {
       status: 'pending',
       subject: `Quotation Request for ${product.name}`
     });
+
+    if (error) {
+      console.error("Insert error:", error);
+      setInquiryError(error.message);
+      setInquiryLoading(false);
+      return;
+    }
 
     if (!error) {
       setInquirySent(true);
@@ -195,7 +228,7 @@ export default function ProductDetailsPage() {
                 html: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
                     <h2>New Inquiry</h2>
-                    <p>Hello ${sellerProfileData?.full_name || 'Seller'},</p>
+                    <p>Hello ${sellerFullName},</p>
                     <p>You have received a new inquiry for your product <strong>${product.name}</strong> from <strong>${user.user_metadata?.full_name || 'a buyer'}</strong>.</p>
                     <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
                       <p><strong>Buyer's Message:</strong></p>

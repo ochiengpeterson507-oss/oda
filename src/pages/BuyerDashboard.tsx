@@ -58,6 +58,13 @@ export default function BuyerDashboard() {
           fetchBuyerData(false); 
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
+        () => {
+          fetchBuyerData(false);
+        }
+      )
       .subscribe();
 
     return () => {
@@ -69,7 +76,7 @@ export default function BuyerDashboard() {
     try {
       if (isInitial) setLoading(true);
       // Fetch inquiries for the buyer with minimal necessary fields
-      const { data: inqData } = await supabase
+      const { data: inqData, error: inqError } = await supabase
         .from('inquiries')
         .select(`
           id, 
@@ -80,10 +87,15 @@ export default function BuyerDashboard() {
           product_id, 
           message,
           seller:profiles!seller_id(id, full_name, email),
-          products:product_id (id, name, company_id)
+          products:product_id (id, name, company_id, companies(owner_id)),
+          messages(id, read, receiver_id, sender_id)
         `)
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
+
+      if (inqError) {
+        console.error("Error fetching buyer inquiries:", inqError);
+      }
 
       if (inqData) {
         setInquiries(inqData);
@@ -265,9 +277,12 @@ export default function BuyerDashboard() {
                         </p>
                         <button 
                           onClick={() => setActiveChatInquiry(inq)}
-                          className="btn-outline px-3 py-1.5 text-[9px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95 shrink-0"
+                          className="relative btn-outline px-3 py-1.5 text-[9px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95 shrink-0"
                         >
                           Chat
+                          {Array.isArray(inq.messages) && inq.messages.filter((m: any) => m.receiver_id === user!.id && !m.read).length > 0 && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                          )}
                         </button>
                       </div>
                       <p className="text-[10px] text-stone/40 uppercase font-black tracking-widest">{new Date(inq.created_at).toLocaleDateString()}</p>

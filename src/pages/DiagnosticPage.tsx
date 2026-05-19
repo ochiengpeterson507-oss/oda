@@ -74,7 +74,7 @@ export default function DiagnosticPage() {
   }, []);
 
   return (
-    <DashboardLayout title="System Diagnostics" subtitle="Raw Data Verification Portal">
+    <DashboardLayout>
       <div className="space-y-8">
         {/* User & Node Health */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

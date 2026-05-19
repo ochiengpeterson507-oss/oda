@@ -81,6 +81,13 @@ export default function SellerDashboard() {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
+        () => {
+          fetchInquiries(company.id);
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'products', filter: `company_id=eq.${company.id}` },
         () => {
           fetchProducts(company.id); 
@@ -137,7 +144,8 @@ export default function SellerDashboard() {
         status, 
         message, 
         buyer:profiles!buyer_id(id, full_name, email), 
-        products(id, name, price_range, company_id)
+        products(id, name, price_range, company_id, companies(owner_id)),
+        messages(id, read, receiver_id, sender_id)
       `)
       .order('created_at', { ascending: false });
     
@@ -602,7 +610,12 @@ export default function SellerDashboard() {
                             </td>
                             <td className="py-4 px-6 text-right">
                               <div className="flex gap-2 justify-end">
-                                <button onClick={() => setActiveChatInquiry(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">Chat</button>
+                                <button onClick={() => setActiveChatInquiry(inq)} className="relative btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">
+                                  Chat
+                                  {Array.isArray(inq.messages) && inq.messages.filter((m: any) => m.receiver_id === user!.id && !m.read).length > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                                  )}
+                                </button>
                                 {inq.status === 'pending' ? (
                                   <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Quote</button>
                                 ) : (
@@ -661,7 +674,12 @@ export default function SellerDashboard() {
                         <div className="flex justify-between items-center pt-2">
                            <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
                            <div className="flex gap-2">
-                             <button onClick={() => setActiveChatInquiry(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">Chat</button>
+                             <button onClick={() => setActiveChatInquiry(inq)} className="relative btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">
+                               Chat
+                               {Array.isArray(inq.messages) && inq.messages.filter((m: any) => m.receiver_id === user!.id && !m.read).length > 0 && (
+                                 <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+                               )}
+                             </button>
                              {inq.status === 'pending' ? (
                                <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Quote</button>
                              ) : (
