@@ -16,7 +16,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-export default function DashboardLayout() {
+export default function DashboardLayout({ children }: { children?: React.ReactNode }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -164,7 +164,7 @@ export default function DashboardLayout() {
 
         {/* Content Explorer Area */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 lg:p-10 scroll-smooth">
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
     </div>

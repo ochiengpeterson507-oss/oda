@@ -28,8 +28,8 @@ export default function DiagnosticPage() {
           .from('inquiries')
           .select(`
             *,
-            products (id, name, company_id),
-            buyer:buyer_id (id, full_name, email)
+            products:product_id (id, name, company_id),
+            buyer:buyer_id (id, full_name)
           `);
 
         if (inqError) throw inqError;
