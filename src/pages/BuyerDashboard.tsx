@@ -25,10 +25,12 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Greeting } from '../components/Greeting';
+import InquiryChat from '../components/chat/InquiryChat';
 
 export default function BuyerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [activeChatInquiry, setActiveChatInquiry] = useState<any>(null);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -252,10 +254,18 @@ export default function BuyerDashboard() {
                     <div className={`mt-1 status-dot ${
                       inq.status === 'pending' ? 'bg-orange-400' : 'bg-olive'
                     }`} />
-                    <div className="space-y-2">
-                      <p className={`text-sm leading-tight font-medium ${inq.status === 'pending' ? 'text-coffee' : 'text-stone/80'}`}>
-                        Inquiry for {inq.products?.name || 'Product'} {inq.status === 'pending' ? 'sent' : 'resolved'}.
-                      </p>
+                    <div className="space-y-2 flex-1">
+                      <div className="flex justify-between items-start gap-2">
+                        <p className={`text-sm leading-tight font-medium ${inq.status === 'pending' ? 'text-coffee' : 'text-stone/80'}`}>
+                          Inquiry for {inq.products?.name || 'Product'} {inq.status === 'pending' ? 'sent' : 'resolved'}.
+                        </p>
+                        <button 
+                          onClick={() => setActiveChatInquiry(inq)}
+                          className="btn-outline px-3 py-1.5 text-[9px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95 shrink-0"
+                        >
+                          Chat
+                        </button>
+                      </div>
                       <p className="text-[10px] text-stone/40 uppercase font-black tracking-widest">{new Date(inq.created_at).toLocaleDateString()}</p>
                     </div>
                   </div>
@@ -291,6 +301,9 @@ export default function BuyerDashboard() {
           </div>
         </div>
       </div>
+      {activeChatInquiry && (
+        <InquiryChat inquiry={activeChatInquiry} onClose={() => setActiveChatInquiry(null)} />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Greeting } from '../components/Greeting';
+import InquiryChat from '../components/chat/InquiryChat';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
   Building2, 
@@ -35,6 +36,7 @@ export default function SellerDashboard() {
 
   const [showCompanyModal, setShowCompanyModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [activeChatInquiry, setActiveChatInquiry] = useState<any>(null);
   const [newCompany, setNewCompany] = useState({ name: '', industry: '' });
   const [newProduct, setNewProduct] = useState({ name: '', description: '', price: '', unit: '', category_id: '', new_category_name: '', image_url: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -599,11 +601,14 @@ export default function SellerDashboard() {
                               </div>
                             </td>
                             <td className="py-4 px-6 text-right">
-                              {inq.status === 'pending' ? (
-                                <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Respond</button>
-                              ) : (
-                                <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Resolved</span>
-                              )}
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => setActiveChatInquiry(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">Chat</button>
+                                {inq.status === 'pending' ? (
+                                  <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Quote</button>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest self-center">Resolved</span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -655,11 +660,14 @@ export default function SellerDashboard() {
                         </div>
                         <div className="flex justify-between items-center pt-2">
                            <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">REF: {inq.id?.slice(0, 8).toUpperCase() || `ODA-INF-0${i+1}`}</span>
-                           {inq.status === 'pending' ? (
-                             <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Respond</button>
-                           ) : (
-                             <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest">Resolved</span>
-                           )}
+                           <div className="flex gap-2">
+                             <button onClick={() => setActiveChatInquiry(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95">Chat</button>
+                             {inq.status === 'pending' ? (
+                               <button onClick={() => handleOpenQuoteModal(inq)} className="btn-outline px-4 py-2 text-[10px] uppercase tracking-widest hover:bg-coffee hover:text-white hover:border-coffee transition-all active:scale-95">Quote</button>
+                             ) : (
+                               <span className="text-[10px] font-bold text-stone/40 uppercase tracking-widest self-center">Resolved</span>
+                             )}
+                           </div>
                         </div>
                       </div>
                     ))}
@@ -969,6 +977,10 @@ export default function SellerDashboard() {
             </form>
           </div>
         </div>
+      )}
+      
+      {activeChatInquiry && (
+        <InquiryChat inquiry={activeChatInquiry} onClose={() => setActiveChatInquiry(null)} />
       )}
     </motion.div>
   );
