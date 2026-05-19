@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Greeting } from '../components/Greeting';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { 
   Building2, 
@@ -361,6 +362,7 @@ export default function SellerDashboard() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-12 pb-20"
     >
+      <Greeting />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-sand/50 pb-10">
         <div className="space-y-1">
           <h1 className="text-4xl font-display font-medium text-coffee tracking-tighter">Seller Hub</h1>

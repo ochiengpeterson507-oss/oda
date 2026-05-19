@@ -3,11 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import AuthLayout from '../components/layout/AuthLayout';
-import { UserPlus, Mail, Lock, User, AlertCircle, Briefcase, Factory, Building2 } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, AlertCircle, Briefcase, Factory, Building2, Eye, EyeOff } from 'lucide-react';
 
 export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<'buyer' | 'seller'>('buyer');
   const [loading, setLoading] = useState(false);
@@ -241,13 +242,21 @@ export default function SignupPage() {
                 <Lock size={16} strokeWidth={1.5} />
               </div>
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"} 
                 required
-                className="input-field pl-12"
+                className="input-field pl-12 pr-12"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-stone/40 hover:text-coffee transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
+              </button>
             </div>
           </div>
         </div>

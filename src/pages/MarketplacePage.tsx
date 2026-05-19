@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Search, Filter, ArrowRight, Star, MapPin, Layers, ShoppingBag, X } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { Greeting } from '../components/Greeting';
 
 export default function MarketplacePage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -104,6 +105,7 @@ export default function MarketplacePage() {
       <Navbar />
 
       <main className="pt-24 pb-20 px-6 max-w-7xl mx-auto">
+        <Greeting />
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 mb-16">
           <div className="flex-1">

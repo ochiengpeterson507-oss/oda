@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Greeting } from '../components/Greeting';
 
 export default function BuyerDashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -142,6 +143,7 @@ export default function BuyerDashboard() {
 
   return (
     <div className="space-y-12 pb-16">
+      <Greeting />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-sand/50 pb-10">
         <div className="space-y-1">
           <h1 className="text-4xl font-display font-medium text-coffee tracking-tighter">Market Overview</h1>
