@@ -25,12 +25,10 @@ import {
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { Greeting } from '../components/Greeting';
-import InquiryChat from '../components/chat/InquiryChat';
 
 export default function BuyerDashboard() {
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeChatInquiry, setActiveChatInquiry] = useState<any>(null);
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [stats, setStats] = useState({
@@ -58,13 +56,6 @@ export default function BuyerDashboard() {
           fetchBuyerData(false); 
         }
       )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
-        () => {
-          fetchBuyerData(false);
-        }
-      )
       .subscribe();
 
     return () => {
@@ -87,8 +78,7 @@ export default function BuyerDashboard() {
           product_id, 
           message,
           seller:profiles!seller_id(id, full_name, email),
-          products:product_id (id, name, company_id, companies(owner_id)),
-          messages(id, read, receiver_id, sender_id)
+          products:product_id (id, name, company_id, companies(owner_id))
         `)
         .eq('buyer_id', user!.id)
         .order('created_at', { ascending: false });
@@ -275,15 +265,6 @@ export default function BuyerDashboard() {
                         <p className={`text-sm leading-tight font-medium ${inq.status === 'pending' ? 'text-coffee' : 'text-stone/80'}`}>
                           Inquiry for {inq.products?.name || 'Product'} {inq.status === 'pending' ? 'sent' : 'resolved'}.
                         </p>
-                        <button 
-                          onClick={() => setActiveChatInquiry(inq)}
-                          className="relative btn-outline px-3 py-1.5 text-[9px] uppercase tracking-widest hover:bg-olive hover:text-white hover:border-olive transition-all active:scale-95 shrink-0"
-                        >
-                          Chat
-                          {Array.isArray(inq.messages) && inq.messages.filter((m: any) => m.receiver_id === user!.id && !m.read).length > 0 && (
-                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
-                          )}
-                        </button>
                       </div>
                       <p className="text-[10px] text-stone/40 uppercase font-black tracking-widest">{new Date(inq.created_at).toLocaleDateString()}</p>
                     </div>
@@ -320,9 +301,6 @@ export default function BuyerDashboard() {
           </div>
         </div>
       </div>
-      {activeChatInquiry && (
-        <InquiryChat inquiry={activeChatInquiry} onClose={() => setActiveChatInquiry(null)} />
-      )}
     </div>
   );
 }
